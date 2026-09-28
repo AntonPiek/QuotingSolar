@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Structure Quote Builder</title>
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -139,7 +138,7 @@ td input[type=checkbox]{width:18px;height:18px;min-width:0;accent-color:var(--ac
 .sheet textarea{font:13px/1.5 var(--mono)!important;min-height:120px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:14px;z-index:60}
 
-/* OneDrive */
+/* Storage */
 .top .btn.on{border-color:#4d94f0;color:#cfe2ff}
 #clientBox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
 /* BOM */
@@ -210,7 +209,7 @@ tr.grp td{background:var(--grad-head);font:600 11px var(--display);text-transfor
 <div class="top"><div class="top-in">
   <div class="brand"><img id="topLogo" alt="" hidden><div><h1 id="topName">Structure Quote</h1><small id="topQno">QUOTE</small></div></div>
   <div class="actions">
-    <button class="btn" id="btnOD" type="button">Connect OneDrive</button>
+    <button class="btn" id="btnOD" type="button">Connect storage</button>
     <button class="btn" id="btnNew" type="button">New quote</button>
     <button class="btn" id="btnSave" type="button">Save quote</button>
     <button class="btn" id="btnLoad" type="button">Open quote</button>
@@ -377,13 +376,13 @@ tr.grp td{background:var(--grad-head);font:600 11px var(--display);text-transfor
 </div>
 <input type="file" id="fileSettings" accept=".json,application/json" hidden>
 <div class="modal" id="odSetup" hidden><div class="sheet" style="width:min(680px,100%)">
-  <header><h2>OneDrive connection</h2><button class="btn sm" type="button" id="odSignOut">Sign out</button><button class="btn sm" type="button" id="odClose">Close</button></header>
+  <header><h2>Storage connection</h2><button class="btn sm" type="button" id="odSignOut">Disconnect</button><button class="btn sm" type="button" id="odClose">Close</button></header>
   <section><div id="odStatus"></div></section>
   <section>
-    <label class="f">Application (client) ID <span class="sub">from the app registration in Microsoft Entra</span><input id="odClientId" autocomplete="off" spellcheck="false" placeholder="0a1b2c3d-1234-5678-9abc-def012345678"></label>
-    <label class="f">Share link of the OneDrive "Clients" folder <span class="sub">OneDrive → Clients → Share → Copy link (can edit)</span><input id="odLink" autocomplete="off" spellcheck="false" placeholder="https://…sharepoint.com/:f:/…"></label>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" id="odSaveBtn">Save &amp; sign in</button></div>
-    <p class="note">These are stored on this computer only. Quotes save to Clients/&lt;client&gt;/Quotes. Shared prices, stock and quote numbers are kept in Clients/_Quote App.</p>
+    <label class="f">GitHub access token <span class="sub">fine-grained token, starts with github_pat_</span><input id="odToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></label>
+    <label class="f">Private data repository<input id="odRepo" autocomplete="off" spellcheck="false" placeholder="AntonPiek/QuotingSolar-data"></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" id="odSaveBtn">Save &amp; connect</button></div>
+    <p class="note">The token is stored on this computer only. Quotes save to clients/&lt;client&gt;/quotes. Shared prices, stock and quote numbers are kept in app/.</p>
   </section>
 </div></div>
 <div class="modal" id="listModal" hidden><div class="sheet" style="width:min(640px,100%)">
@@ -399,7 +398,7 @@ tr.grp td{background:var(--grad-head);font:600 11px var(--display);text-transfor
    (21/09/2026, AIKO 655 W panels, Ground Mount Eco, excl. transport).
    Roof-mount rates are PLACEHOLDERS — update from supplier quotes.
    ========================================================================== */
-const DEFAULT_CONFIG = { // Public build: prices and rates load from Clients/_Quote App/settings.json on OneDrive (import Pieka-quote-settings.json once via ⚙ → Import settings).
+const DEFAULT_CONFIG = { // Public build: prices and rates load from app/settings.json in the private data repository (import Pieka-quote-settings.json once via ⚙ → Import settings).
 
   company:{ name:"Boland 3D Solutions", tagline:"Solar mounting structures – supply & install", address:"Worcester, Western Cape", phone:"", email:"", website:"", vatNo:"", regNo:"", logo:"" },
   bank:{ bank:"", accName:"Boland 3D Solutions", accNo:"", branch:"", type:"Cheque" },
@@ -687,117 +686,81 @@ async function savePdf(id, name){
   document.body.classList.remove("pdfmode");
 }
 
-/* ---------- OneDrive via Microsoft 365 sign-in (Microsoft Graph) ----------
-   One-time setup per computer: ⚙-free "Set up OneDrive" dialog asks for
-   1) the Application (client) ID from the Microsoft Entra app registration, and
-   2) the share link of the OneDrive "Clients" folder (edit rights).
-   Paste the ID / link below to skip typing them on each computer.            */
-const APP_CLIENT_ID = "";      // e.g. "0a1b2c3d-...."
-const APP_CLIENTS_LINK = "";   // e.g. "https://company-my.sharepoint.com/:f:/g/personal/..."
-const OD = { msal:null, account:null, clients:null, app:null, clientList:[], clientDir:null, clientName:"", err:"", files:[] };
-const GRAPH = "https://graph.microsoft.com/v1.0";
-const SCOPES = ["Files.ReadWrite.All","User.Read"];
-function odCfg(){ let c={}; try{ c=JSON.parse(localStorage.getItem("structQuoteOD")||"{}"); }catch(e){} return { clientId:(c.clientId||APP_CLIENT_ID||"").trim(), link:(c.link||APP_CLIENTS_LINK||"").trim() }; }
-function odSetCfg(c){ try{ localStorage.setItem("structQuoteOD", JSON.stringify(c)); }catch(e){} }
-const odConfigured = () => { const c=odCfg(); return !!(c.clientId && c.link); };
-const safeName = s => String(s||"").replace(/[\u2013\u2014]/g,"-").replace(/[\\/:*?"<>|#%]+/g," ").replace(/\s+/g," ").trim().replace(/[. ]+$/,"").slice(0,80);
+/* ---------- Storage: private GitHub repository (GitHub REST API) ----------
+   One-time setup per computer: the "Connect storage" dialog asks for a GitHub
+   fine-grained access token (Contents: read & write on the data repository only).
+   Data layout in the data repo:
+     clients/<Client>/client.json · clients/<Client>/quotes/<quote>.json|.pdf
+     app/settings.json · app/stock.json · app/counter.json                        */
+const DATA_REPO_DEFAULT = "AntonPiek/QuotingSolar-data";
+const OD = { clients:null, app:null, clientList:[], clientDir:null, clientName:"", err:"", files:[], user:"" };
+function odCfg(){ let c={}; try{ c=JSON.parse(localStorage.getItem("structQuoteGH")||"{}"); }catch(e){} return { token:(c.token||"").trim(), repo:(c.repo||DATA_REPO_DEFAULT).trim() }; }
+function odSetCfg(c){ try{ localStorage.setItem("structQuoteGH", JSON.stringify(c)); }catch(e){} }
+const odConfigured = () => !!odCfg().token;
+const safeName = s => String(s||"").replace(/[–—]/g,"-").replace(/[\\/:*?"<>|#%]+/g," ").replace(/\s+/g," ").trim().replace(/[. ]+$/,"").slice(0,80);
 const normName = s => String(s||"").toLowerCase().replace(/\(pty\)|\bpty\b|\bltd\b|\bcc\b|\binc\b|\bllc\b|\(|\)/g,"").replace(/[^a-z0-9]/g,"");
 function lev(a,b){ if(Math.abs(a.length-b.length)>3) return 9; const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++) d[0][j]=j;
   for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
 
-/* ---- sign-in ---- */
-function msalApp(){
-  const c=odCfg(); if(!c.clientId || !window.msal) return null;
-  if(!OD.msal || OD.msalId!==c.clientId){
-    OD.msal = new msal.PublicClientApplication({ auth:{ clientId:c.clientId, authority:"https://login.microsoftonline.com/common",
-      redirectUri: location.origin + location.pathname.replace(/index\.html$/i,"") }, cache:{ cacheLocation:"localStorage" } });
-    OD.msalId=c.clientId;
-  }
-  return OD.msal;
-}
-async function odToken(interactive){
-  const m=msalApp(); if(!m) throw Object.assign(new Error("Sign-in is not set up"),{code:"setup"});
-  let acc = OD.account || m.getActiveAccount() || m.getAllAccounts()[0];
-  if(!acc){ if(!interactive) throw Object.assign(new Error("Not signed in"),{code:"login"});
-    acc = (await m.loginPopup({ scopes:SCOPES, prompt:"select_account" })).account; }
-  OD.account=acc; m.setActiveAccount(acc);
-  try{ return (await m.acquireTokenSilent({ scopes:SCOPES, account:acc })).accessToken; }
-  catch(e){ if(!interactive) throw Object.assign(new Error("Sign-in expired"),{code:"login"}); return (await m.acquireTokenPopup({ scopes:SCOPES, account:acc })).accessToken; }
-}
-/* ---- Graph helpers (a "dir" is {d: driveId, id: itemId, name}) ---- */
-async function gfetch(path, opt={}){
-  const t = await odToken(true);
-  const r = await fetch(path.startsWith("http")?path:GRAPH+path, Object.assign({}, opt, { headers:Object.assign({ Authorization:"Bearer "+t }, opt.headers||{}) }));
+/* ---- GitHub helpers (a "dir" is {path, name}) ---- */
+const encPath = p => p.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+async function ghf(path, opt={}){
+  const c=odCfg(); if(!c.token) throw Object.assign(new Error("Storage is not connected"),{code:"setup"});
+  const r = await fetch(`https://api.github.com/repos/${c.repo}${path}`, Object.assign({}, opt, { cache:"no-store", headers:Object.assign({
+    Authorization:"Bearer "+c.token, Accept:"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28" }, opt.headers||{}) }));
   if(r.status===404) return null;
-  if(!r.ok){ let m="HTTP "+r.status; try{ m=(await r.json()).error.message||m; }catch(e){} throw Object.assign(new Error(m),{status:r.status}); }
-  if(r.status===204) return {};
-  return (r.headers.get("content-type")||"").includes("json") ? r.json() : r;
+  if(!r.ok){ let m="HTTP "+r.status; try{ m=(await r.json()).message||m; }catch(e){} throw Object.assign(new Error(m),{status:r.status}); }
+  return r.status===204 ? {} : r.json();
 }
-const itemAt = (dir,name) => `/drives/${dir.d}/items/${dir.id}:/${encodeURIComponent(name)}`;
 async function gList(dir){
-  const out=[]; let url=`/drives/${dir.d}/items/${dir.id}/children?$top=500`;
-  while(url){ const j=await gfetch(url); if(!j) break; out.push(...(j.value||[])); url=j["@odata.nextLink"]||null; }
-  return out;
+  const j=await ghf("/contents/"+encPath(dir.path));
+  return Array.isArray(j) ? j.map(x=>({ name:x.name, path:x.path, sha:x.sha, folder:x.type==="dir", file:x.type==="file" })) : [];
 }
-async function gReadItemText(d,id){ const it=await gfetch(`/drives/${d}/items/${id}`); if(!it) return null;
-  const u=it["@microsoft.graph.downloadUrl"]; const r = u ? await fetch(u) : await gfetch(`/drives/${d}/items/${id}/content`); return r.text(); }
-async function readJSON(dir,name){ try{ const it=await gfetch(itemAt(dir,name)); if(!it||!it.file) return null; return JSON.parse(await gReadItemText(dir.d,it.id)); }catch(e){ if(e.code==="login"||e.code==="setup") throw e; return null; } }
+function b64decode(b){ const bin=atob((b||"").replace(/\n/g,"")); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new TextDecoder().decode(u); }
+function blobToB64(blob){ return new Promise((ok,no)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(",")[1]||""); r.onerror=()=>no(r.error); r.readAsDataURL(blob); }); }
+async function readText(path){ const j=await ghf("/contents/"+encPath(path)); if(!j||j.type!=="file") return null;
+  if(j.content && j.encoding==="base64") return b64decode(j.content);
+  const b=await ghf(`/git/blobs/${j.sha}`); return b ? b64decode(b.content) : null; }
+async function readJSON(dir,name){ try{ const t=await readText(dir.path+"/"+name); return t==null?null:JSON.parse(t); }catch(e){ if(e.code==="setup") throw e; return null; } }
 async function writeFile(dir,name,data){
+  const path=dir.path+"/"+name;
   const blob = data instanceof Blob ? data : new Blob([data],{type:"application/json"});
-  if(blob.size < 3.5e6) return gfetch(itemAt(dir,name)+":/content",{ method:"PUT", body:blob, headers:{ "Content-Type":blob.type||"application/octet-stream" } });
-  const s = await gfetch(itemAt(dir,name)+":/createUploadSession",{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ item:{ "@microsoft.graph.conflictBehavior":"replace" } }) });
-  const CH=3276800; let res;
-  for(let i=0;i<blob.size;i+=CH){ const part=blob.slice(i,Math.min(i+CH,blob.size));
-    res=await fetch(s.uploadUrl,{ method:"PUT", headers:{ "Content-Range":`bytes ${i}-${i+part.size-1}/${blob.size}` }, body:part });
-    if(!res.ok) throw new Error("Upload failed ("+res.status+")"); }
-  return res;
+  const content = await blobToB64(blob);
+  for(let attempt=0; attempt<2; attempt++){
+    const cur = await ghf("/contents/"+encPath(path));
+    const body = { message:`${cur?"Update":"Add"} ${path}`, content };
+    if(cur && cur.sha) body.sha=cur.sha;
+    try{ return await ghf("/contents/"+encPath(path), { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body) }); }
+    catch(e){ if((e.status===409||e.status===422) && attempt===0) continue; throw e; }
+  }
 }
 async function gGetDir(dir,name,create){
-  const it=await gfetch(itemAt(dir,name));
-  if(it && it.folder) return { d:dir.d, id:it.id, name:it.name };
-  if(!create) return null;
-  const n=await gfetch(`/drives/${dir.d}/items/${dir.id}/children`,{ method:"POST", headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ name, folder:{}, "@microsoft.graph.conflictBehavior":"fail" }) });
-  return { d:dir.d, id:n.id, name:n.name };
-}
-function shareToken(url){ return "u!"+btoa(unescape(encodeURIComponent(url.trim()))).replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-"); }
-async function odResolveLink(link){
-  const it = await gfetch(`/shares/${shareToken(link)}/driveItem`);
-  if(!it) throw Object.assign(new Error("link"),{status:404});
-  if(!it.folder) throw new Error("That link is to a file, not the Clients folder");
-  return { d: it.parentReference.driveId, id: it.id, name: it.name };
+  const d={ path:dir.path+"/"+name, name };
+  if(create) return d;                     // folders exist implicitly once a file is written
+  const kids=await gList(dir); return kids.some(k=>k.folder&&k.name===name) ? d : null;
 }
 
 /* ---- connect / shared data ---- */
 async function odConnect(interactive){
   if(!odConfigured()){ if(interactive) openOdSetup(); odUI(); return; }
-  if(!window.msal){ OD.err="Microsoft sign-in could not load – check the internet connection and reload."; odUI(); return; }
   try{
-    await odToken(interactive);
-    OD.clients = await odResolveLink(odCfg().link);
-    OD.app = await gGetDir(OD.clients,"_Quote App",true);
-    OD.err="";
+    const repo=await ghf(""); if(!repo) throw Object.assign(new Error("repo"),{status:404});
+    if(!repo.private){ OD.err=`The data repository ${repo.full_name} is PUBLIC. Make it private (Settings → General → Danger zone → Change visibility) before saving quotes.`; OD.clients=null; odUI(); return; }
+    OD.clients={ path:"clients", name:"clients" }; OD.app={ path:"app", name:"app" }; OD.err="";
     await odLoadShared(); await odListClients();
     if(!$("c_co").value.trim()) $("q_no").value = await odNextQuoteNo();
     odMatchTyped(); odUI(); render();
     if(interactive) toast(`Connected – ${OD.clientList.length} clients found`);
   }catch(e){
     OD.clients=null;
-    const code=e.code||e.errorCode||"";
-    if(code==="login"||code==="setup"){ OD.err=""; odUI(); return; }
-    if(/user_cancelled/.test(code)){ OD.err=""; }
-    else if(/popup_window|empty_window|popup/.test(code)) OD.err="The Microsoft sign-in window was blocked. Allow pop-ups for this site and click Sign in again.";
-    else if(e.status===403||e.status===404||e.status===401) OD.err="This login cannot open the Clients folder link. Check the folder is shared with this account (can edit) and that the link in Set up OneDrive is correct.";
-    else OD.err="OneDrive connection failed: "+(e.message||code);
+    if(e.code==="setup"){ OD.err=""; odUI(); return; }
+    OD.err = e.status===401 ? "GitHub did not accept the access token (wrong or expired). Click Connect storage and paste a new token."
+      : e.status===404||e.status===403 ? `The token cannot open the repository ${odCfg().repo}. Check the name and that the token has Contents: Read and write on it.`
+      : "Could not connect to storage: "+(e.message||e)+" – check the internet connection.";
     odUI();
   }
 }
-async function odAutoConnect(){
-  odUI();
-  const m=msalApp(); if(!m || !odConfigured()) return;
-  try{ await m.handleRedirectPromise(); }catch(e){}
-  if(m.getAllAccounts().length) odConnect(false);
-}
+async function odAutoConnect(){ odUI(); if(odConfigured()) odConnect(false); }
 async function odLoadShared(){
   const s = await readJSON(OD.app,"settings.json");
   if(s){ const st=CFG.stock; CFG = mergeDeep(clone(DEFAULT_CONFIG), s); CFG.stock=st; patchCfg(); }
@@ -811,7 +774,7 @@ async function odLoadShared(){
 }
 async function odListClients(){
   const list=(await gList(OD.clients)).filter(x=>x.folder && !x.name.startsWith("_") && !x.name.startsWith("."))
-    .map(x=>({ name:x.name, n:normName(x.name), h:{ d:OD.clients.d, id:x.id, name:x.name } }));
+    .map(x=>({ name:x.name, n:normName(x.name), h:{ path:x.path, name:x.name } }));
   list.sort((a,b)=>a.name.localeCompare(b.name)); OD.clientList=list;
 }
 async function odNextQuoteNo(){
@@ -819,6 +782,24 @@ async function odNextQuoteNo(){
   const n = c.d===ymd ? (c.n||0)+1 : 1;
   await writeFile(OD.app,"counter.json",JSON.stringify({d:ymd,n}));
   return `${CFG.quote.prefix}-${ymd}-${String(n).padStart(2,"0")}`;
+}
+function openOdSetup(){
+  const c=odCfg();
+  $("odToken").value=c.token; $("odRepo").value=c.repo;
+  $("odStatus").innerHTML = OD.clients ? `<span class="pill good">CONNECTED</span> ${esc(c.repo)} · ${OD.clientList.length} clients` : `<span class="pill warn">NOT CONNECTED</span>`;
+  $("odSignOut").hidden = !c.token;
+  $("odSetup").hidden=false;
+}
+async function odSaveSetup(){
+  const token=$("odToken").value.trim(), repo=$("odRepo").value.trim().replace(/^https:\/\/github\.com\//i,"").replace(/\.git$/,"").replace(/\/$/,"");
+  if(!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(token)){ toast("That doesn't look like a GitHub token – it starts with github_pat_"); $("odToken").focus(); return; }
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ toast("Repository must look like AntonPiek/QuotingSolar-data"); $("odRepo").focus(); return; }
+  odSetCfg({token, repo}); $("odSetup").hidden=true; await odConnect(true);
+}
+async function odSignOut(){
+  odSetCfg({repo:odCfg().repo});
+  Object.assign(OD,{clients:null,app:null,clientList:[],clientDir:null,clientName:"",err:""});
+  $("odSetup").hidden=true; odUI(); render(); toast("Storage disconnected on this computer");
 }
 
 /* ---- clients ---- */
@@ -839,51 +820,26 @@ async function odSelectClient(i){
 }
 function renderClientBox(){
   const box=$("clientBox"); if(!box) return;
-  if(!OD.clients){ box.innerHTML=`<span class="note">${odConfigured()?"Sign in to OneDrive (top bar) to search your existing clients.":"Set up OneDrive (top bar) to search your existing clients and save quotes to their folders."}</span>`; return; }
+  if(!OD.clients){ box.innerHTML=`<span class="note">${odConfigured()?"Connect storage (top bar) to search your existing clients.":"Connect storage (top bar) to search your existing clients and save quotes to their folders."}</span>`; return; }
   const v=$("c_co").value.trim();
   if(OD.clientName && normName(v)===normName(OD.clientName)){
-    box.innerHTML=`<span class="pill good">EXISTING CLIENT</span> <span class="mono" style="font-size:13px">Clients/${esc(OD.clientName)}</span>`; return; }
+    box.innerHTML=`<span class="pill good">EXISTING CLIENT</span> <span class="mono" style="font-size:13px">clients/${esc(OD.clientName)}</span>`; return; }
   OD.clientDir=null; OD.clientName="";
   const exact=OD.clientList.find(c=>c.n===normName(v));
-  if(v && exact){ OD.clientDir=exact.h; OD.clientName=exact.name; odFillContact(exact.h); box.innerHTML=`<span class="pill good">EXISTING CLIENT</span> <span class="mono" style="font-size:13px">Clients/${esc(exact.name)}</span>`; return; }
+  if(v && exact){ OD.clientDir=exact.h; OD.clientName=exact.name; odFillContact(exact.h); box.innerHTML=`<span class="pill good">EXISTING CLIENT</span> <span class="mono" style="font-size:13px">clients/${esc(exact.name)}</span>`; return; }
   if(!v){ box.innerHTML=`<span class="note">Type the client name – ${OD.clientList.length} existing clients will be searched.</span>`; return; }
   const m=clientMatches(v);
   box.innerHTML = (m.length?`<span class="note">Existing clients:</span> `+m.map(c=>`<button type="button" class="btn sm" data-client="${OD.clientList.indexOf(c)}">${esc(c.name)}</button>`).join(" "):"")
-    + ` <span class="pill info">NEW CLIENT</span> <span class="note">folder "Clients/${esc(safeName(v))}" is created when you save${m.length?" – or pick an existing client":""}</span>`;
+    + ` <span class="pill info">NEW CLIENT</span> <span class="note">folder "clients/${esc(safeName(v))}" is created when you save${m.length?" – or pick an existing client":""}</span>`;
 }
 function odUI(){
   const b=$("btnOD"); if(!b) return;
-  if(OD.clients){ b.textContent=`● ${OD.account?.name||OD.account?.username||"OneDrive"}`; b.title="Connected to OneDrive – click for account and folder"; b.classList.add("on"); }
-  else { b.textContent = odConfigured() ? "Sign in to OneDrive" : "Set up OneDrive"; b.title=""; b.classList.remove("on"); }
-  $("btnSave").textContent = OD.clients ? "Save to OneDrive" : "Save quote";
-  $("odMsg").hidden = !OD.err; $("odMsg").innerHTML = OD.err ? `<span class="pill warn">ONEDRIVE</span> ${esc(OD.err)}` : "";
+  if(OD.clients){ b.textContent="● Storage connected"; b.title="Saving to "+odCfg().repo+" – click for details"; b.classList.add("on"); }
+  else { b.textContent = odConfigured() ? "Reconnect storage" : "Connect storage"; b.title=""; b.classList.remove("on"); }
+  $("btnSave").textContent = OD.clients ? "Save quote" : "Save quote (download)";
+  $("odMsg").hidden = !OD.err; $("odMsg").innerHTML = OD.err ? `<span class="pill warn">STORAGE</span> ${esc(OD.err)}` : "";
   renderClientBox();
 }
-function openOdSetup(){
-  const c=odCfg();
-  $("odClientId").value=c.clientId; $("odLink").value=c.link;
-  $("odStatus").innerHTML = OD.clients ? `<span class="pill good">CONNECTED</span> ${esc(OD.account?.username||"")} · folder <b>${esc(OD.clients.name)}</b> · ${OD.clientList.length} clients`
-    : OD.account ? `<span class="pill info">SIGNED IN</span> ${esc(OD.account.username)} – folder not connected` : `<span class="pill warn">NOT CONNECTED</span>`;
-  $("odSignOut").hidden = !OD.account;
-  $("odSetup").hidden=false;
-}
-async function odSaveSetup(){
-  const raw=$("odClientId").value, link=$("odLink").value.trim();
-  const g=raw.match(/[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/i);
-  if(!g){ toast("That is not the Application (client) ID. In Entra → App registrations → your app → Overview, copy 'Application (client) ID' (looks like 1a2b3c4d-1234-5678-9abc-1234567890ab). Do not use a client secret."); $("odClientId").focus(); return; }
-  const h=g[0].replace(/-/g,""); const cid=[h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join("-").toLowerCase();
-  $("odClientId").value=cid;
-  if(!/^https:\/\//i.test(link)){ toast("Paste the full share link of the Clients folder (starts with https://)"); return; }
-  odSetCfg({clientId:cid, link}); $("odSetup").hidden=true; await odConnect(true);
-}
-async function odSignOut(){
-  const m=msalApp(); const acc=OD.account;
-  Object.assign(OD,{account:null,clients:null,app:null,clientList:[],clientDir:null,clientName:""});
-  $("odSetup").hidden=true; odUI(); render();
-  try{ if(m && acc) await m.logoutPopup({ account:acc, mainWindowRedirectUri: location.href }); }catch(e){ try{ m.setActiveAccount(null); localStorage.removeItem("msal.account.keys"); }catch(_){} }
-  toast("Signed out");
-}
-
 /* ---- save / open quotes ---- */
 async function odSaveQuote(){
   render();
@@ -895,7 +851,7 @@ async function odSaveQuote(){
     if(!dir){ const ex=OD.clientList.find(c=>c.n===normName(name));
       dir = ex ? ex.h : await gGetDir(OD.clients, safeName(name), true);
       if(!ex) await odListClients(); OD.clientDir=dir; OD.clientName=dir.name; $("c_co").value=dir.name; }
-    const qdir=await gGetDir(dir,"Quotes",true);
+    const qdir=await gGetDir(dir,"quotes",true);
     const base=safeName([$("q_no").value,$("c_proj").value].filter(Boolean).join(" - "))||"Quote";
     await writeFile(qdir,base+".json",JSON.stringify(getState(),null,1));
     const info=(await readJSON(dir,"client.json"))||{};
@@ -906,9 +862,9 @@ async function odSaveQuote(){
       await loadPdfLib();
       buildPrint(); await writeFile(qdir,base+".pdf",await pdfBlob("printDoc"));
       if($("saveBom").checked && lastM?.bom){ buildBomPrint(); await writeFile(qdir,base+" - BOM.pdf",await pdfBlob("bomDoc")); }
-      toast(`Saved to Clients/${dir.name}/Quotes`);
-    }catch(e){ toast(`Quote saved to Clients/${dir.name}/Quotes – the PDF could not be made (${e.message||"check internet"})`); }
-  }catch(e){ toast("Could not save to OneDrive: "+(e.message||e)); if(e.code==="login") odConnect(true); }
+      toast(`Saved to clients/${dir.name}/quotes`);
+    }catch(e){ toast(`Quote saved to clients/${dir.name}/quotes – the PDF could not be made (${e.message||"check internet"})`); }
+  }catch(e){ toast("Could not save: "+(e.message||e));  }
   finally{ btn.disabled=false; odUI(); }
 }
 async function odOpenList(){
@@ -919,18 +875,18 @@ async function odOpenList(){
   if(!dir) body.innerHTML=`<p class="note">Type or pick the client name in step 1 first, then click Open quote again. Or open a saved file:</p>`;
   else{
     body.innerHTML=`<p class="note">Loading…</p>`; $("listModal").hidden=false;
-    try{ const q=await gGetDir(dir,"Quotes",false);
-      if(q) OD.files=(await gList(q)).filter(f=>f.file && /\.json$/i.test(f.name)).map(f=>({n:f.name,d:q.d,id:f.id,t:f.lastModifiedDateTime}));
+    try{ const q=await gGetDir(dir,"quotes",false);
+      if(q) OD.files=(await gList(q)).filter(f=>f.file && /\.json$/i.test(f.name)).map(f=>({n:f.name,path:f.path}));
     }catch(e){ toast("Could not list quotes: "+e.message); }
     OD.files.sort((a,b)=>b.n.localeCompare(a.n));
-    body.innerHTML = OD.files.length ? `<div class="tw"><table><tbody>${OD.files.map((f,i)=>`<tr><td>${esc(f.n.replace(/\.json$/i,""))}<span class="sm">${f.t?dfmt(new Date(f.t)):""}</span></td><td class="r"><button class="btn sm primary" type="button" data-openq="${i}">Open</button></td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No saved quotes for this client yet.</p>`;
+    body.innerHTML = OD.files.length ? `<div class="tw"><table><tbody>${OD.files.map((f,i)=>`<tr><td>${esc(f.n.replace(/\.json$/i,""))}</td><td class="r"><button class="btn sm primary" type="button" data-openq="${i}">Open</button></td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No saved quotes for this client yet.</p>`;
   }
   body.innerHTML += `<p><button class="btn sm" type="button" id="listFile">Open a file from this computer…</button></p>`;
   $("listModal").hidden=false;
 }
 async function odOpenQuote(i){
   const f=OD.files?.[i]; if(!f) return;
-  try{ const s=JSON.parse(await gReadItemText(f.d,f.id)); const keep=OD.clientDir; setState(s); OD.clientDir=keep; OD.clientName=keep?keep.name:""; $("listModal").hidden=true; render(); toast("Quote opened"); }
+  try{ const s=JSON.parse(await readText(f.path)); const keep=OD.clientDir; setState(s); OD.clientDir=keep; OD.clientName=keep?keep.name:""; $("listModal").hidden=true; render(); toast("Quote opened"); }
   catch(e){ toast("Could not open that quote: "+e.message); }
 }
 
@@ -1080,9 +1036,9 @@ function saveSettings(){
 }
 function cfgNoStock(){ const c=clone(CFG); delete c.stock; return c; }
 function persistCfg(){ store("structQuoteConfig", JSON.stringify(CFG));
-  if(OD.app) writeFile(OD.app,"settings.json",JSON.stringify(cfgNoStock(),null,1)).catch(e=>toast("Settings not saved to OneDrive: "+e.message)); }
+  if(OD.app) writeFile(OD.app,"settings.json",JSON.stringify(cfgNoStock(),null,1)).catch(e=>toast("Settings not saved to storage: "+e.message)); }
 function persistStock(){ store("structQuoteConfig", JSON.stringify(CFG));
-  if(OD.app) writeFile(OD.app,"stock.json",JSON.stringify(CFG.stock||{},null,1)).catch(e=>toast("Stock not saved to OneDrive: "+e.message)); }
+  if(OD.app) writeFile(OD.app,"stock.json",JSON.stringify(CFG.stock||{},null,1)).catch(e=>toast("Stock not saved to storage: "+e.message)); }
 function afterCfg(){ patchCfg(); fillSelects(); renderTools(); render();
   $("topName").textContent = CFG.company.name || "Structure Quote";
   if(CFG.company.logo){ $("topLogo").src=CFG.company.logo; $("topLogo").hidden=false; } else $("topLogo").hidden=true; }
@@ -1119,7 +1075,7 @@ $("btnDeduct").onclick=()=>{ const B=lastM?.bom; if(!B) return;
   dedArmed=false; $("btnDeduct").textContent="Take this job off stock";
   B.items.forEach(i=>{ if(CFG.stock[i.id]!==undefined) CFG.stock[i.id]=Math.max(0,num(CFG.stock[i.id])-i.need); });
   persistStock(); render(); toast("Stock updated"); };
-$("btnOD").onclick=()=>{ if(OD.clients) openOdSetup(); else odConnect(true); };
+$("btnOD").onclick=()=>{ if(OD.clients || OD.err || !odConfigured()) openOdSetup(); else odConnect(true); };
 $("odClose").onclick=()=>$("odSetup").hidden=true;
 $("odSaveBtn").onclick=odSaveSetup;
 $("odSignOut").onclick=odSignOut;

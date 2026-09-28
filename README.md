@@ -2,6 +2,6 @@
 
 Quoting app for solar mounting structures (supply & install), bill of materials and stock.
 
-Live app: https://antonpiek.github.io/QuotingSolar/
 
-Prices, rates and markups are NOT stored in this public code. They load from `Clients/_Quote App/settings.json` on OneDrive after signing in with Microsoft 365.
+
+Prices, rates and markups are NOT stored in this public code. They load from `app/settings.json` in a separate private data repository.
