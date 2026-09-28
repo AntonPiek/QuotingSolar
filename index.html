@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Structure Quote Builder</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#e8ebef; --surface:#ffffff; --surface2:#f3f5f8; --ink:#0d1117; --muted:#5a6472; --line:#d2d8e0;
+  --accent:#1f6fd6; --accent2:#0b3b8c; --accent-ink:#ffffff; --steel:#1f5fb4; --good:#2e7d4f; --warn:#b3541e;
+  --grad-top:linear-gradient(120deg,#05070a 0%,#111a28 45%,#0b3b8c 100%);
+  --grad-btn:linear-gradient(180deg,#3584ea 0%,#1f6fd6 55%,#1659b3 100%);
+  --grad-head:linear-gradient(180deg,#ffffff 0%,#eef2f7 100%);
+  --grad-bg:linear-gradient(180deg,#f1f3f6 0%,#e3e7ec 100%);
+  --grad-bar:linear-gradient(90deg,#ffffff 0%,#eef2f7 100%);
+  --display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",Roboto,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){color-scheme:dark;
+    --bg:#0b0e13; --surface:#141a22; --surface2:#1b232e; --ink:#e6ebf1; --muted:#98a4b3; --line:#2a3441;
+    --accent:#4d94f0; --accent2:#9cc4ff; --accent-ink:#ffffff; --steel:#7fb2f5; --good:#6cc38f; --warn:#e58c5a;
+    --grad-top:linear-gradient(120deg,#000000 0%,#0d1522 50%,#12357a 100%);
+    --grad-btn:linear-gradient(180deg,#4d94f0 0%,#2f78de 55%,#1f63c4 100%);
+    --grad-head:linear-gradient(180deg,#19212b 0%,#141a22 100%);
+    --grad-bg:linear-gradient(180deg,#0e1218 0%,#090c10 100%);
+    --grad-bar:linear-gradient(90deg,#141a22 0%,#1b2330 100%);}
+}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#0b0e13; --surface:#141a22; --surface2:#1b232e; --ink:#e6ebf1; --muted:#98a4b3; --line:#2a3441;
+    --accent:#4d94f0; --accent2:#9cc4ff; --accent-ink:#ffffff; --steel:#7fb2f5; --good:#6cc38f; --warn:#e58c5a;
+    --grad-top:linear-gradient(120deg,#000000 0%,#0d1522 50%,#12357a 100%);
+    --grad-btn:linear-gradient(180deg,#4d94f0 0%,#2f78de 55%,#1f63c4 100%);
+    --grad-head:linear-gradient(180deg,#19212b 0%,#141a22 100%);
+    --grad-bg:linear-gradient(180deg,#0e1218 0%,#090c10 100%);
+    --grad-bar:linear-gradient(90deg,#141a22 0%,#1b2330 100%);}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--grad-bg) fixed,var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+.num,td.r,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--grad-top);color:#fff;box-shadow:0 2px 10px rgba(5,10,20,.25)}
+.top-in{max-width:1040px;margin:0 auto;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand img{height:34px;width:auto;background:#fff;border-radius:4px;padding:2px}
+.brand h1{font-size:19px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;font:500 11px var(--mono);opacity:.7;letter-spacing:.06em}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px}
+.top .btn{background:rgba(255,255,255,.06);color:#fff;border-color:rgba(255,255,255,.28)}
+.btn.primary{background:var(--grad-btn);border-color:var(--accent);color:var(--accent-ink)}
+.top .btn.primary{background:var(--grad-btn);color:#fff;border-color:#4d94f0}
+.btn.sm{padding:5px 9px;font-size:13px}
+.btn.ghost{background:transparent}
+.btn:hover{filter:brightness(1.06)}
+
+/* Layout */
+main{max-width:1040px;margin:0 auto;padding:18px 16px;display:grid;gap:16px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.step>summary{background:var(--grad-head);list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid transparent}
+.step[open]>summary{border-bottom-color:var(--line)}
+.step>summary::-webkit-details-marker{display:none}
+.stepno{font:600 13px var(--mono);color:#fff;background:var(--grad-btn);border:0;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;flex:none}
+.step h2{font-size:18px;letter-spacing:.01em}
+.step .hint{margin-left:auto;font-size:13px;color:var(--muted);text-align:right}
+.body{padding:16px;display:grid;gap:14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.grid.two{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+label.f{display:grid;gap:4px;font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+label.f input,label.f select,label.f textarea{font-size:15px;font-weight:400;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;min-width:0}
+label.f input::placeholder{color:var(--muted);opacity:.8}
+label.f .sub{font-weight:400;font-size:12px;color:var(--muted)}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg label{padding:7px 12px;cursor:pointer;font-size:14px;background:var(--surface2)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg input:checked+span{color:var(--accent-ink)}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+.note{font-size:13px;color:var(--muted)}
+.pill{display:inline-block;font:500 11.5px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid currentColor;letter-spacing:.03em}
+.pill.warn{color:var(--warn)} .pill.good{color:var(--good)} .pill.info{color:var(--steel)}
+.callout{border-left:3px solid var(--steel);background:var(--surface2);padding:10px 12px;border-radius:0 6px 6px 0;font-size:14px}
+.callout.warn{border-left-color:var(--warn)}
+
+/* Tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font:600 11.5px var(--display);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right;white-space:nowrap}
+td input,td select{background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:6px 7px;width:100%;min-width:60px}
+td input[type=checkbox]{width:18px;height:18px;min-width:0;accent-color:var(--accent)}
+.cat{font:500 10.5px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+/* Sizing tiles */
+.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tile{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:2px}
+.tile .k{font:600 11px var(--display);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tile .v{font:500 20px var(--mono)}
+.tile .s{font-size:12px;color:var(--muted)}
+.tile input{margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:6px 8px;width:100%;font-size:14px}
+
+/* Totals */
+.totals{display:grid;gap:6px;justify-self:end;width:min(100%,420px)}
+.totals .row{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.totals .row.gt{border-top:2px solid var(--ink);padding-top:8px;font-weight:700;font-size:18px}
+.totals input,.totals select{width:90px;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:5px 7px}
+.margin{background:var(--surface2);border:1px dashed var(--line);border-radius:8px;padding:12px;display:grid;gap:4px;font-size:14px}
+.margin h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+
+/* Sticky bar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--grad-bar);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar-in{max-width:1040px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.bar .kv{display:grid}
+.bar .kv span{font:600 10.5px var(--display);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.bar .kv b{font:500 16px var(--mono)}
+.bar .kv.big b{font-size:21px;color:var(--accent)}
+.bar .spacer{margin-left:auto}
+
+/* Settings modal */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(8,14,18,.55);display:flex;justify-content:center;align-items:flex-start;padding:24px 12px;overflow:auto}
+.sheet{background:var(--surface);border-radius:12px;width:min(900px,100%);border:1px solid var(--line)}
+.sheet header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);border-radius:12px 12px 0 0;flex-wrap:wrap}
+.sheet header h2{margin-right:auto;font-size:20px}
+.sheet section{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.sheet section h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--steel)}
+.sheet textarea{font:13px/1.5 var(--mono)!important;min-height:120px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:14px;z-index:60}
+
+/* OneDrive */
+.top .btn.on{border-color:#4d94f0;color:#cfe2ff}
+#clientBox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
+/* BOM */
+#bomDoc{display:none}
+.bomsum{display:flex;flex-wrap:wrap;gap:8px}
+.bomsum span{font:500 12.5px var(--mono);background:var(--surface2);border:1px solid var(--line);border-radius:99px;padding:3px 10px}
+td .sm{display:block;font-size:12px;color:var(--muted)}
+.short{color:var(--warn);font-weight:700}
+.okq{color:var(--good)}
+tr.grp td{background:var(--grad-head);font:600 11px var(--display);text-transform:uppercase;letter-spacing:.08em;color:var(--steel)}
+.tools{columns:2 240px;column-gap:24px;margin:0;padding:0;list-style:none}
+.tools li{break-inside:avoid;display:flex;gap:8px;align-items:flex-start;padding:3px 0;font-size:14px}
+.tools input{width:17px;height:17px;accent-color:var(--accent);flex:none;margin-top:2px}
+.setsTbl input{max-width:110px}
+/* Print document */
+#printDoc{display:none}
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#fff;color:#111;padding:0;font-size:10.5pt}
+  .top,main,.bar,.modal,.toast{display:none!important}
+  #printDoc{display:block;color:#111}
+  body.print-bom #printDoc{display:none!important}
+  body.print-bom #bomDoc{display:block}
+}
+.pdfmode #printDoc,.pdfmode #bomDoc{display:block;width:186mm;background:#fff;padding:0}
+.pd .box{display:inline-block;width:11px;height:11px;border:1px solid #333;vertical-align:middle}
+.pd table.items td.bx,.pd table.items th.bx{text-align:center;width:52px}
+.pd .toolsP{columns:2;column-gap:20px;font-size:9pt;list-style:none;padding:0;margin:4px 0 0}
+.pd .toolsP li{break-inside:avoid;padding:1px 0}
+.pd{font-family:var(--body);color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pd table.items tr{break-inside:avoid}
+.pd .tot,.pd .blocks,.pd .sign{break-inside:avoid}
+.pd .hd{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid transparent;border-image:linear-gradient(90deg,#05070a,#1f6fd6) 1;padding-bottom:10px;margin-bottom:12px}
+.pd .hd img{max-height:70px;max-width:220px}
+.pd .co{font-size:9pt;line-height:1.4}
+.pd .co b{font:700 14pt var(--display)}
+.pd .qt{text-align:right}
+.pd .qt h1{font:700 22pt var(--display);letter-spacing:.06em;color:#0b3b8c}
+.pd .qt table{margin-left:auto;width:auto;font-size:9.5pt}
+.pd .qt td{padding:1px 0 1px 12px;border:0}
+.pd .blocks{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+.pd .blk{border:1px solid #c9d0d4;border-radius:4px;padding:8px 10px;font-size:9.5pt}
+.pd .blk h3{font:600 9pt var(--display);text-transform:uppercase;letter-spacing:.08em;color:#1f6fd6;margin-bottom:4px}
+.pd table.items{font-size:9.5pt;border:1px solid #c9d0d4}
+.pd table.items thead tr{background:linear-gradient(90deg,#05070a,#0b3b8c)}
+.pd table.items th{background:transparent!important;color:#fff!important;font-size:8.5pt}
+.pd table.items td{border-bottom:1px solid #e1e5e7;padding:5px 8px}
+.pd table.items tr.sec td{background:linear-gradient(90deg,#e6edf7,#f7f9fc);font:600 8.5pt var(--display);text-transform:uppercase;letter-spacing:.07em;color:#1f6fd6}
+.pd .tot{display:flex;justify-content:space-between;gap:20px;margin-top:10px;align-items:flex-start}
+.pd .tot table{width:280px;font-size:10pt}
+.pd .tot td{padding:3px 6px;border:0}
+.pd .tot tr.gt td{border-top:2px solid #0b3b8c;font-weight:700;font-size:12pt}
+.pd .sav{font-size:9.5pt;border:1px solid #c9d0d4;border-radius:4px;padding:8px 10px;flex:1}
+.pd .terms{margin-top:12px;font-size:8.5pt;line-height:1.45;white-space:pre-wrap}
+.pd .sign{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:22px;font-size:9pt}
+.pd .sign div{border-top:1px solid #111;padding-top:3px}
+.pd .foot{margin-top:14px;font-size:8pt;color:#555;text-align:center}
+@media (max-width:560px){
+  .step .hint{display:none}
+  .brand h1{font-size:17px}
+  .bar .kv b{font-size:14px}.bar .kv.big b{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="top-in">
+  <div class="brand"><img id="topLogo" alt="" hidden><div><h1 id="topName">Structure Quote</h1><small id="topQno">QUOTE</small></div></div>
+  <div class="actions">
+    <button class="btn" id="btnOD" type="button">Connect OneDrive</button>
+    <button class="btn" id="btnNew" type="button">New quote</button>
+    <button class="btn" id="btnSave" type="button">Save quote</button>
+    <button class="btn" id="btnLoad" type="button">Open quote</button>
+    <button class="btn" id="btnPrint" type="button">Print</button>
+    <button class="btn primary" id="btnPdf" type="button">Save PDF</button>
+    <button class="btn" id="btnSettings" type="button" title="Admin settings" aria-label="Admin settings">⚙</button>
+  </div>
+</div></div>
+<input type="file" id="fileLoad" accept=".json,application/json" hidden>
+
+<main id="app">
+<div class="callout warn" id="odMsg" hidden></div>
+
+<!-- 1 CLIENT -->
+<details class="step" open><summary><span class="stepno">1</span><h2>Client &amp; site</h2><span class="hint" id="h1"></span></summary>
+<div class="body">
+  <div class="grid">
+    <label class="f">Client company (installer)<input id="c_co" data-s></label>
+    <label class="f">Contact person<input id="c_name" data-s></label>
+    <label class="f">Phone<input id="c_phone" data-s type="tel"></label>
+    <label class="f">Email<input id="c_email" data-s type="email"></label>
+  </div>
+  <div id="clientBox"></div>
+  <div class="grid">
+    <label class="f">Project / end client<input id="c_proj" data-s placeholder="e.g. Rietvlei farm"></label>
+    <label class="f">Site address<input id="c_addr" data-s></label>
+    <label class="f">Installation town <span class="sub" id="townKm"></span><select id="town" data-s></select></label>
+    <label class="f" id="customKmWrap" hidden>Distance one way (km)<input id="customKm" data-s type="number" min="0"></label>
+  </div>
+  <div class="grid">
+    <label class="f">Quote date<input id="q_date" data-s type="date"></label>
+    <label class="f">Quote number<input id="q_no" data-s></label>
+    <label class="f">Client order / ref.<input id="c_ref" data-s></label>
+  </div>
+</div></details>
+
+<!-- 2 STRUCTURE -->
+<details class="step" open><summary><span class="stepno">2</span><h2>Mounting structure</h2><span class="hint" id="h2"></span></summary>
+<div class="body">
+  <div class="grid">
+    <label class="f">Number of panels<input id="panels" data-s type="number" min="0" inputmode="numeric"></label>
+    <label class="f">Panel wattage (W) <span class="sub">for kWp on quote</span><input id="panelW" data-s type="number" min="0" value="655"></label>
+    <label class="f">Panel size L × B (mm)<input id="panelSize" data-s value="2385 x 1135"></label>
+    <div class="f" style="display:grid;gap:4px"><span style="font-size:12.5px;font-weight:600;color:var(--muted)">Scope</span>
+      <div class="seg"><label><input type="radio" name="scope" id="sc_si" value="si" data-s checked><span>Supply &amp; install</span></label><label><input type="radio" name="scope" id="sc_so" value="so" data-s><span>Supply only</span></label></div></div>
+  </div>
+  <div class="grid two">
+    <label class="f">Structure type<select id="mount" data-s></select></label>
+    <label class="f">Layout / notes on quote<input id="layout" data-s placeholder="e.g. 2 portrait, 25° tilt, 500 mm front edge"></label>
+  </div>
+  <div class="callout" id="structInfo"></div>
+  <div class="grid">
+    <label class="f">Supplier quote total (R excl. VAT &amp; transport) <span class="sub">optional – overrides rate table</span><input id="structOverride" data-s type="number" min="0" step="0.01" placeholder="use rate table"></label>
+    <label class="f">Supplier quote no.<input id="supRef" data-s placeholder="e.g. QU12579A"></label>
+    <label class="f">Supplier transport to site (R)<input id="supTransport" data-s type="number" min="0"></label>
+    <label class="f">Structure markup (%)<input id="mkStruct" data-s type="number" min="0" step="0.5"></label>
+  </div>
+  <label class="check" id="useBomWrap"><input type="checkbox" id="useBom" data-s checked> Price the structure from the bill of materials (supplier part prices) instead of the per-panel rate table</label>
+</div></details>
+
+<!-- 3 INSTALL -->
+<details class="step" open id="stepInstall"><summary><span class="stepno">3</span><h2>Installation &amp; travel</h2><span class="hint" id="h3"></span></summary>
+<div class="body">
+  <div class="grid">
+    <div class="f" style="display:grid;gap:4px"><span style="font-size:12.5px;font-weight:600;color:var(--muted)">Installation labour</span>
+      <div class="seg"><label><input type="radio" name="labMode" id="lm_panel" value="panel" data-s checked><span>Per panel</span></label><label><input type="radio" name="labMode" id="lm_fixed" value="fixed" data-s><span>Fixed amount</span></label></div></div>
+    <label class="f" id="wrapLabRate">Rate per panel (R)<input id="labRate" data-s type="number" min="0"></label>
+    <label class="f" id="wrapLabFixed" hidden>Fixed labour amount (R)<input id="labFixed" data-s type="number" min="0"></label>
+  </div>
+  <div class="grid" id="foundWrap">
+    <label class="f">Foundation holes <span class="sub" id="holesHint"></span><input id="holes" data-s type="number" min="0"></label>
+    <label class="f">Drill &amp; concrete per hole (R)<input id="holeRate" data-s type="number" min="0"></label>
+  </div>
+  <div class="grid">
+    <label class="f">Distance one way (km)<input id="kmShow" type="number" readonly tabindex="-1"></label>
+    <label class="f">Return trips <span class="sub" id="tripsHint"></span><input id="trips" data-s type="number" min="0"></label>
+    <label class="f">Travel rate (R/km)<input id="kmRate" data-s type="number" min="0" step="0.01"></label>
+    <label class="f">Accommodation nights<input id="nights" data-s type="number" min="0" value="0"></label>
+  </div>
+  <h3 style="font-size:15px">Extras</h3>
+  <div class="tw"><table><thead><tr><th>Incl.</th><th>Item</th><th class="r">Qty</th><th class="r">Price</th></tr></thead><tbody id="extraBody"></tbody></table></div>
+</div></details>
+
+<!-- 4 SUMMARY -->
+<details class="step" open><summary><span class="stepno">4</span><h2>Quote summary</h2><span class="hint" id="h4"></span></summary>
+<div class="body">
+  <div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><h3 style="font-size:15px">Custom line items</h3><button class="btn sm" type="button" id="addCustom">+ Add item</button></div>
+    <div class="tw" id="customWrap" hidden><table><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit price (R)</th><th></th></tr></thead><tbody id="customBody"></tbody></table></div>
+  </div>
+  <div class="tw"><table><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Total</th></tr></thead><tbody id="lineBody"></tbody></table></div>
+  <div class="grid two" style="align-items:start">
+    <div class="margin" id="marginBox"></div>
+    <div class="totals">
+      <div class="row"><span>Subtotal</span><b class="num" id="t_sub"></b></div>
+      <div class="row"><span>Discount <select id="discType" data-s><option value="pct">%</option><option value="r">R</option></select> <input id="disc" data-s type="number" min="0" value="0"></span><b class="num" id="t_disc"></b></div>
+      <div class="row"><span>Excl. VAT</span><b class="num" id="t_ex"></b></div>
+      <div class="row"><span id="t_vatL">VAT 15%</span><b class="num" id="t_vat"></b></div>
+      <div class="row gt"><span>Grand total</span><b class="num" id="t_gt"></b></div>
+      <div class="row note"><span id="t_depL">Deposit</span><span class="num" id="t_dep"></span></div>
+    </div>
+  </div>
+  <label class="f">Notes on quote (printed)<textarea id="qNotes" data-s rows="2"></textarea></label>
+  <label class="check"><input type="checkbox" id="saveBom" data-s checked> Also save the BOM PDF in the client's Quotes folder</label>
+</div></details>
+
+<!-- 5 BOM -->
+<details class="step" open id="stepBom"><summary><span class="stepno">5</span><h2>Bill of materials &amp; stock</h2><span class="hint" id="h5"></span></summary>
+<div class="body">
+  <div id="bomNA" class="callout" hidden>A bill of materials is only available for the two ground mount types. Roof-mount parts lists can be added once you have a supplier quote for one.</div>
+  <div id="bomMain" style="display:grid;gap:14px">
+  <div class="grid two" style="align-items:start">
+    <div>
+      <h3 style="font-size:15px;margin-bottom:6px">Table layout <span class="note">(2 panels high, portrait – blank = auto)</span></h3>
+      <div class="tw"><table class="setsTbl"><thead><tr><th>Set</th><th class="r">Panels per row</th><th class="r">No. of tables</th><th class="r">Panels</th></tr></thead><tbody>
+        <tr><td>1</td><td class="r"><input id="bs_m1" data-s type="number" min="0" aria-label="Set 1 panels per row"></td><td class="r"><input id="bs_t1" data-s type="number" min="0" aria-label="Set 1 tables"></td><td class="r mono" id="bs_c1"></td></tr>
+        <tr><td>2</td><td class="r"><input id="bs_m2" data-s type="number" min="0" aria-label="Set 2 panels per row"></td><td class="r"><input id="bs_t2" data-s type="number" min="0" aria-label="Set 2 tables"></td><td class="r mono" id="bs_c2"></td></tr>
+        <tr><td>3</td><td class="r"><input id="bs_m3" data-s type="number" min="0" aria-label="Set 3 panels per row"></td><td class="r"><input id="bs_t3" data-s type="number" min="0" aria-label="Set 3 tables"></td><td class="r mono" id="bs_c3"></td></tr>
+      </tbody></table></div>
+    </div>
+    <div style="display:grid;gap:10px">
+      <label class="f">Rail profile<select id="railProf" data-s><option value="auto">Auto (concrete 125x50 · surface 125x65)</option><option value="50">125x50x2</option><option value="65">125x65x2</option></select></label>
+      <div id="layoutMsg"></div>
+    </div>
+  </div>
+  <div class="bomsum" id="bomSum"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn sm" type="button" id="btnPrintBom">Print BOM</button>
+    <button class="btn sm primary" type="button" id="btnPdfBom">Save BOM PDF</button>
+    <button class="btn sm" type="button" id="btnCopyOrder">Copy order list</button>
+    <button class="btn sm" type="button" id="btnDeduct">Take this job off stock</button>
+  </div>
+  <div class="tw"><table class="bom"><thead><tr><th>Loaded</th><th>Part</th><th class="r">Need</th><th class="r">In stock</th><th class="r">To order</th><th class="r">Unit cost</th><th class="r">Order cost</th></tr></thead><tbody id="bomBody"></tbody></table></div>
+  <p class="note">Quantities follow the supplier's design rules (2% extra on clamps, 5% on fasteners) and match the Axe Struct quotes. Rails are cut to length per job, so carry stock of the standard parts, clamps and fasteners. Stock levels save in this browser – back them up with ⚙ Export settings.</p>
+  <h3 style="font-size:15px">Tools &amp; site kit</h3>
+  <ul class="tools" id="toolsList"></ul>
+  </div>
+</div></details>
+
+<p class="note" style="text-align:center"><button class="btn sm ghost" type="button" id="btnExample">Load example (Ceres, 32 panels)</button></p>
+</main>
+
+<div class="bar"><div class="bar-in">
+  <div class="kv"><span>Panels</span><b id="b_sys">–</b></div>
+  <div class="kv"><span>Excl. VAT</span><b id="b_ex">–</b></div>
+  <div class="kv"><span>Margin</span><b id="b_mg">–</b></div>
+  <div class="kv big spacer"><span>Total incl. VAT</span><b id="b_gt">–</b></div>
+</div></div>
+
+<div id="printDoc" class="pd"></div>
+<div id="bomDoc" class="pd"></div>
+
+<div class="modal" id="settings" hidden>
+  <div class="sheet">
+    <header><h2>Admin settings</h2>
+      <button class="btn sm" type="button" id="setExport">Export settings</button>
+      <button class="btn sm" type="button" id="setImport">Import settings</button>
+      <button class="btn sm" type="button" id="setReset">Reset defaults</button>
+      <button class="btn sm primary" type="button" id="setSave">Save &amp; close</button>
+      <button class="btn sm" type="button" id="setClose">Cancel</button>
+    </header>
+    <div id="setBody"></div>
+  </div>
+</div>
+<input type="file" id="fileSettings" accept=".json,application/json" hidden>
+<div class="modal" id="odSetup" hidden><div class="sheet" style="width:min(680px,100%)">
+  <header><h2>OneDrive connection</h2><button class="btn sm" type="button" id="odSignOut">Sign out</button><button class="btn sm" type="button" id="odClose">Close</button></header>
+  <section><div id="odStatus"></div></section>
+  <section>
+    <label class="f">Application (client) ID <span class="sub">from the app registration in Microsoft Entra</span><input id="odClientId" autocomplete="off" spellcheck="false" placeholder="0a1b2c3d-1234-5678-9abc-def012345678"></label>
+    <label class="f">Share link of the OneDrive "Clients" folder <span class="sub">OneDrive → Clients → Share → Copy link (can edit)</span><input id="odLink" autocomplete="off" spellcheck="false" placeholder="https://…sharepoint.com/:f:/…"></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" id="odSaveBtn">Save &amp; sign in</button></div>
+    <p class="note">These are stored on this computer only. Quotes save to Clients/&lt;client&gt;/Quotes. Shared prices, stock and quote numbers are kept in Clients/_Quote App.</p>
+  </section>
+</div></div>
+<div class="modal" id="listModal" hidden><div class="sheet" style="width:min(640px,100%)">
+  <header><h2 id="listTitle">Open a quote</h2><button class="btn sm" type="button" id="listClose">Close</button></header>
+  <section id="listBody"></section>
+</div></div>
+
+<script>
+/* ==========================================================================
+   CONFIG — all prices excl. VAT. Edit here, or in the ⚙ Admin settings panel
+   (settings panel changes are stored in this browser; export them as backup).
+   Ground mount rates come from Axe Struct quotes QU12579–QU12594
+   (21/09/2026, AIKO 655 W panels, Ground Mount Eco, excl. transport).
+   Roof-mount rates are PLACEHOLDERS — update from supplier quotes.
+   ========================================================================== */
+const DEFAULT_CONFIG = { // Public build: prices and rates load from Clients/_Quote App/settings.json on OneDrive (import Pieka-quote-settings.json once via ⚙ → Import settings).
+
+  company:{ name:"Boland 3D Solutions", tagline:"Solar mounting structures – supply & install", address:"Worcester, Western Cape", phone:"", email:"", website:"", vatNo:"", regNo:"", logo:"" },
+  bank:{ bank:"", accName:"Boland 3D Solutions", accNo:"", branch:"", type:"Cheque" },
+  quote:{ prefix:"BQ", validityDays:10, depositPct:60,
+    terms:"1. Scope: supply and installation of the PV mounting structure only. PV modules, inverters, cabling, electrical work and panel mounting are by the client unless listed above.\n2. Validity: as stated above and subject to supplier stock availability. Material lead time is approx. 3.5 weeks from order and deposit.\n3. Payment: the deposit is payable on acceptance to order materials; the balance is payable on completion of the structure.\n4. Ground mount pricing is based on a preliminary design; components can change in the detailed design. Subsurface conditions are excluded – rock, hard or unstable ground, or geotechnical requirements are quoted as extras.\n5. The site must be accessible, cleared and levelled, with the layout and position confirmed by the client before installation.\n6. Materials suit corrosion category up to C3 (ISO 9223). More aggressive environments must be discussed before order.\n7. The structure carries the manufacturer's 10-year warranty against structural failure, subject to the manufacturer's warranty conditions, including annual inspection and maintenance by the owner.\n8. Ownership of all materials remains with us until paid in full." },
+  base:{ town:"Worcester" },
+  vatPct:15,
+  markup:{ structure:0, transport:0 },
+  labour:{ perPanel:0, fixed:0, holeRate:0, panelsPerDay:60, kmRate:0, nightRate:0 },
+  supplierTransport:0,
+  // Bill of materials rules – fitted to the Axe Struct Ground Mount Eco quotes (2 portrait, 25° tilt, 500 mm front edge).
+  bom:{ perRowMax:40, clampOver:2, fastOver:5,
+    holeDia:300, holeDepth:1.0, bagYield:0.018, bagLabel:"Ready-mix concrete, 40 kg bag", bagPrice:0,
+    anchorsPerRafter:3, anchorLabel:"M12 anchor for base bracket (check type with engineer)", anchorPrice:0,
+    galvPerRafters:20, galvLabel:"Cold galv spray (cut & drilled edges)", galvPrice:0,
+    tools:["Installation manual & supplier layout drawing","Site plan with table positions","Tape measure 30 m & 8 m","String line, pegs & spray paint","Laser level or dumpy level + staff","Spirit level","Auger / post-hole drill (concrete footings)","Wheelbarrow, shovels & mixing tub","Water for concrete","Generator & extension leads","Impact driver + 13 mm & 19 mm sockets","6 mm hex bit (M8 cap screws)","Spanners 13 mm & 19 mm","Torque wrench","Drill + HSS bits","Angle grinder + cutting discs","Vise grips / spanners for wire rope tensioning","Clamps & ratchet straps","Step ladder","PPE: gloves, glasses, boots, hard hats","First aid kit"] },
+  // Supplier parts & unit prices (excl. VAT) from Axe Struct quotes 21/09/2026. Rails are priced per metre.
+  parts:[
+    {id:"bfs",grp:"Frame",code:"AXE_BR_BF_S_12_SH",desc:"Base fix bracket – single",spec:"HDG steel, M12",price:0},
+    {id:"bfd",grp:"Frame",code:"AXE_BR_BF_D_12_SH",desc:"Base fix bracket – double",spec:"HDG steel, M12",price:0},
+    {id:"frontA",grp:"Frame",code:"AXE_L_LC_125_65_2_SZ",desc:"Front post – lipped channel 1.74 m",spec:"ZAM310, 125x65x2",price:0},
+    {id:"backA",grp:"Frame",code:"AXE_L_LC_100_50_2_SZ",desc:"Back post – lipped channel 2.91 m",spec:"ZAM310, 100x50x2",price:0},
+    {id:"frontB",grp:"Frame",code:"AXE_L_LC_75_50_2.5_SZ",desc:"Front post – lipped channel 0.74 m",spec:"ZAM310, 75x50x2.5",price:0},
+    {id:"backB",grp:"Frame",code:"AXE_L_LC_75_50_2.5_SZ",desc:"Back post – lipped channel 1.91 m",spec:"ZAM310, 75x50x2.5",price:0},
+    {id:"diagB",grp:"Frame",code:"AXE_L_LC_75_50_2_SZ",desc:"Back diagonal – lipped channel 2.59 m",spec:"ZAM310, 75x50x2",price:0},
+    {id:"rafter",grp:"Frame",code:"AXE_L_LC_125_65_2_SZ",desc:"Rafter – lipped channel 3.84 m",spec:"ZAM310, 125x65x2",price:0},
+    {id:"rail50",grp:"Rails",code:"AXE_L_LC_125_50_2_SZ",desc:"Rail – lipped channel",spec:"ZAM310, 125x50x2 · cut to length",price:0,perM:true},
+    {id:"rail65",grp:"Rails",code:"AXE_L_LC_125_65_2_SZ",desc:"Rail – lipped channel",spec:"ZAM310, 125x65x2 · cut to length",price:0,perM:true},
+    {id:"ext50",grp:"Rails",code:"AXE_EX_125_50_SZ",desc:"Rail extension (joiner)",spec:"ZAM310, for 125x50",price:0},
+    {id:"ext65",grp:"Rails",code:"AXE_EX_125_65_SZ",desc:"Rail extension (joiner)",spec:"ZAM310, for 125x65",price:0},
+    {id:"wedge",grp:"Rails",code:"AXE_CW_LC_SH",desc:"Wedge clip (rail to rafter)",spec:"HDG steel, lipped channel",price:0},
+    {id:"wc12",grp:"Rails",code:"AXE_WC_12_SH",desc:"Clamp washer M12",spec:"HDG steel, lipped channel",price:0},
+    {id:"mid",grp:"Panel clamps",code:"AXE_CM_CP_AL",desc:"Mid clamp",spec:"Aluminium, classic pin",price:0},
+    {id:"end",grp:"Panel clamps",code:"AXE_CE_AP_30_AL",desc:"End clamp 30 mm",spec:"Aluminium – check panel frame height",price:0},
+    {id:"cs8",grp:"Panel clamps",code:"AXE_CS_8_55_SS",desc:"Cap screw M8x55",spec:"Stainless steel",price:0},
+    {id:"nsq",grp:"Panel clamps",code:"AXE_NSQ_8_SS",desc:"Square nut M8",spec:"Stainless steel",price:0},
+    {id:"nhd",grp:"Panel clamps",code:"AXE_NHD_8_PN",desc:"Nut holder M8",spec:"Nylon",price:0},
+    {id:"ws8",grp:"Panel clamps",code:"AXE_WS_8_SS",desc:"Spring washer M8",spec:"Stainless steel",price:0},
+    {id:"bh12",grp:"Frame bolts",code:"AXE_BH_12_35_SH",desc:"Hex bolt M12x35",spec:"HDG steel",price:0},
+    {id:"nh12",grp:"Frame bolts",code:"AXE_NH_12_SH",desc:"Hex nut M12",spec:"HDG steel",price:0},
+    {id:"ws12",grp:"Frame bolts",code:"AXE_WS_12_SH",desc:"Spring washer M12",spec:"HDG steel",price:0},
+    {id:"wp12",grp:"Frame bolts",code:"AXE_WP_12_SH",desc:"Plain washer M12",spec:"HDG steel",price:0},
+    {id:"rope",grp:"Sway bracing",code:"AXE_RW_L_8_SH",desc:"Wire rope 4.0 m",spec:"HDG steel, 8 mm",price:0},
+    {id:"eye",grp:"Sway bracing",code:"AXE_RW_E_12_SH",desc:"Wire rope eyelet M12",spec:"HDG steel",price:0},
+    {id:"rclamp",grp:"Sway bracing",code:"AXE_RW_C_8_SE",desc:"Wire rope clamp 8 mm",spec:"Electro galv",price:0},
+    {id:"tb",grp:"Sway bracing",code:"AXE_RW_B_10_SE",desc:"Turnbuckle M10",spec:"Electro galv",price:0},
+    {id:"anti",grp:"Consumables",code:"Anti_Seize_S",desc:"Anti-seize compound 350 ml",spec:"Nickel spray",price:0}
+  ],
+  stock:{},
+  // tiers: [max panels, supplier rate per panel]. Above the last tier the last rate is used.
+  mounts:[
+    { key:"gm_concrete", label:"Ground mount Eco – predrilled holes & concrete backfill", ground:true, holes:true,
+      tiers:[[9999,0]], bom:"A" },
+    { key:"gm_surface", label:"Ground mount Eco – base connector on surface", ground:true, holes:false,
+      tiers:[[9999,0]], bom:"B" },
+    { key:"ibr", label:"IBR roof mount (placeholder rate)", tiers:[[9999,0]] },
+    { key:"corrugated", label:"Corrugated roof mount (placeholder rate)", tiers:[[9999,0]] },
+    { key:"tile", label:"Tile roof mount (placeholder rate)", tiers:[[9999,0]] },
+    { key:"flat", label:"Flat roof tilt frames (placeholder rate)", tiers:[[9999,0]] }
+  ],
+  extras:[
+    { key:"est", label:"Site establishment & setting out", price:0, on:false },
+    { key:"auger", label:"Auger / TLB hire (per day)", price:0, on:false },
+    { key:"rock", label:"Rock drilling (per hole)", price:0, on:false },
+    { key:"eng", label:"Engineer's sign-off letter", price:0, on:false }
+  ],
+  // Approximate one-way road distance from Worcester (km). Verify and edit in settings.
+  towns:[
+    ["Worcester",0],["Rawsonville",18],["De Doorns",32],["Touws River",80],["Robertson",48],["McGregor",64],["Ashton",68],["Bonnievale",75],["Montagu",78],["Barrydale",135],
+    ["Wolseley",38],["Tulbagh",58],["Ceres",52],["Prince Alfred Hamlet",62],["Op-die-Berg",85],
+    ["Villiersdorp",52],["Wellington",62],["Paarl",62],["Klapmuts",70],["Franschhoek",78],["Stellenbosch",82],["Somerset West",105],["Gordon's Bay",112],
+    ["Kraaifontein",85],["Brackenfell",88],["Durbanville",95],["Bellville",95],["Kuils River",95],["Milnerton",108],["Cape Town",112],
+    ["Grabouw",95],["Greyton",100],["Botrivier",100],["Riviersonderend",105],["Caledon",108],["Swellendam",125],["Hermanus",135],["Napier",140],["Stanford",150],["Bredasdorp",155],["Gansbaai",170],["Heidelberg",180],
+    ["Riebeek-Kasteel",95],["Riebeek-Wes",98],["Porterville",105],["Malmesbury",112],["Piketberg",125],["Moorreesburg",130],["Darling",145],["Citrusdal",160],["Aurora",165],["Hopefield",165],["Redelinghuys",175],["Velddrif",175],["Vredenburg",190],["Saldanha",190],["Clanwilliam",210],["Graafwater",235],["Klawer",255],["Lamberts Bay",260],["Vredendal",280],["Lutzville",300],
+    ["Ladismith",195],["Laingsburg",200],["Riversdale",215],["Calitzdorp",245],["Albertinia",250],["Mossel Bay",290],["Oudtshoorn",295],["George",330],["Prince Albert",330],["Beaufort West",390]
+  ]
+};
+
+/* ---------- utilities ---------- */
+const $ = id => document.getElementById(id);
+const clone = o => JSON.parse(JSON.stringify(o));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const blank = v => v === "" || v === null || v === undefined;
+function money(n){ n = Math.round((n||0)*100)/100; const neg=n<0; n=Math.abs(n);
+  const [a,b] = n.toFixed(2).split("."); return (neg?"-":"")+"R "+a.replace(/\B(?=(\d{3})+(?!\d))/g," ")+"."+b; }
+function fx(n,d=1){ return (Math.round(n*10**d)/10**d).toLocaleString("en-US",{maximumFractionDigits:d}).replace(/,/g," "); }
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){ return null; } }
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2200); }
+function download(name, text){ const b=new Blob([text],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); }
+function mergeDeep(base, over){ if(!over||typeof over!=="object") return base;
+  for(const k in over){ if(over[k] && typeof over[k]==="object" && !Array.isArray(over[k]) && base[k] && typeof base[k]==="object" && !Array.isArray(base[k])) mergeDeep(base[k],over[k]); else base[k]=over[k]; } return base; }
+const cleanLabel = l => l.replace(/\s*\(placeholder rate\)/,"");
+
+let CFG = clone(DEFAULT_CONFIG);
+try{ const s = store("structQuoteConfig"); if(s) CFG = mergeDeep(clone(DEFAULT_CONFIG), JSON.parse(s)); }catch(e){}
+function patchCfg(){ CFG.mounts.forEach(m=>{ const d=DEFAULT_CONFIG.mounts.find(x=>x.key===m.key); if(d&&d.bom&&!m.bom) m.bom=d.bom; }); if(!CFG.stock) CFG.stock={}; if(!CFG.parts) CFG.parts=clone(DEFAULT_CONFIG.parts); }
+patchCfg();
+let bomChecks = {};
+
+let customs = [];     // {d,q,p}
+let extraState = {};  // key -> {on,q,p}
+
+function fillSelects(){
+  const town=$("town"), cur=town.value;
+  town.innerHTML = CFG.towns.map(([t,k])=>`<option value="${esc(t)}">${esc(t)} — ${k} km</option>`).join("") + `<option value="__custom">Other town (enter km)</option>`;
+  town.value = cur && [...town.options].some(o=>o.value===cur) ? cur : CFG.towns[0]?.[0];
+  const m=$("mount"), mc=m.value; m.innerHTML = CFG.mounts.map(x=>`<option value="${x.key}">${esc(x.label)}</option>`).join(""); if(mc) m.value=mc;
+  CFG.extras.forEach(x=>{ if(!extraState[x.key]) extraState[x.key]={on:x.on,q:"1",p:""}; });
+}
+function ymdStr(){ const d=new Date(); return String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0"); }
+function nextQuoteNo(){
+  const ymd = ymdStr();
+  let n = 1; try{ const s=JSON.parse(store("structQuoteCounter")||"{}"); if(s.d===ymd) n=s.n+1; store("structQuoteCounter",JSON.stringify({d:ymd,n})); }catch(e){ n = Math.floor(Math.random()*90)+10; }
+  return `${CFG.quote.prefix}-${ymd}-${String(n).padStart(2,"0")}`;
+}
+function applyDefaults(){
+  $("q_date").value = new Date().toISOString().slice(0,10);
+  $("q_no").value = nextQuoteNo();
+  $("labRate").value = CFG.labour.perPanel; $("labFixed").value = CFG.labour.fixed;
+  $("holeRate").value = CFG.labour.holeRate; $("kmRate").value = CFG.labour.kmRate;
+  $("supTransport").value = CFG.supplierTransport; $("mkStruct").value = CFG.markup.structure;
+}
+
+/* ---------- calculation ---------- */
+function tierRate(mount, qty){ const t=mount.tiers||[]; for(const [max,rate] of t){ if(qty<=max) return rate; } return t.length? t[t.length-1][1] : 0; }
+function compute(){
+  const M={};
+  M.panels = Math.max(0, Math.round(num($("panels").value)));
+  M.w = num($("panelW").value); M.kwp = M.panels*M.w/1000;
+  M.install = $("sc_si").checked;
+  M.mount = CFG.mounts.find(m=>m.key===$("mount").value) || CFG.mounts[0];
+  M.rate = tierRate(M.mount, M.panels);
+  M.bom = computeBOM(M.panels, M.mount);
+  const ov = num($("structOverride").value);
+  M.bomPriced = !(ov>0) && $("useBom").checked && M.bom && M.bom.cost>0;
+  M.structCost = ov>0 ? ov : (M.bomPriced ? M.bom.cost : M.rate*M.panels);
+  M.structUnit = M.panels ? M.structCost/M.panels : 0;
+  M.mk = num($("mkStruct").value);
+  M.holesAuto = M.mount.holes ? (M.bom ? M.bom.holes : Math.ceil(M.panels*0.375/2)*2) : 0;
+  M.holes = M.install && M.mount.holes ? (blank($("holes").value) ? M.holesAuto : Math.round(num($("holes").value))) : 0;
+  const t=$("town").value;
+  M.town = t==="__custom" ? "" : t;
+  M.km = t==="__custom" ? num($("customKm").value) : (CFG.towns.find(x=>x[0]===t)?.[1] ?? 0);
+  M.tripsAuto = M.panels>0 ? Math.ceil(M.panels/Math.max(1,num(CFG.labour.panelsPerDay)))+1 : 1;
+  M.trips = blank($("trips").value) ? M.tripsAuto : Math.round(num($("trips").value));
+  M.travelKm = M.install ? M.km*2*M.trips : 0;
+
+  const L=[]; const add=(sec,d,q,c,mkPct)=>{ if(q>0 && c>0) L.push({sec,d,q,c,u:c*(1+(mkPct||0)/100),mk:!!mkPct}); };
+  add("Supply",`Mounting structure – ${cleanLabel(M.mount.label)}, for ${M.panels} × ${fx(M.w,0)} W panels (${fx(M.kwp,2)} kWp)`,M.panels,M.structUnit,M.mk);
+  add("Supply","Delivery of structure to site",M.panels?1:0,num($("supTransport").value),num(CFG.markup.transport));
+  if(M.install){
+    if($("lm_fixed").checked) add("Installation","Installation of mounting structure",M.panels?1:0,num($("labFixed").value));
+    else add("Installation","Installation of mounting structure (per panel)",M.panels,num($("labRate").value));
+    add("Installation","Drill foundation holes & concrete backfill (per hole)",M.holes,num($("holeRate").value));
+    add("Travel",`Travel ${CFG.base.town} – ${M.town||"site"} (${fx(M.km,0)} km × 2 × ${M.trips} trip${M.trips===1?"":"s"})`,M.travelKm,num($("kmRate").value));
+    add("Travel","Accommodation (per night)",num($("nights").value),num(CFG.labour.nightRate));
+    CFG.extras.forEach(x=>{ const s=extraState[x.key]||{}; if(s.on) add("Extras",x.label,num(s.q||1),blank(s.p)?x.price:num(s.p)); });
+  }
+  customs.forEach(c=>{ if(c.d) add("Other",c.d,num(c.q),num(c.p)); });
+  M.lines=L;
+  M.sub = L.reduce((s,l)=>s+l.q*l.u,0);
+  M.supplierCost = L.filter(l=>l.mk).reduce((s,l)=>s+l.q*l.c,0);
+  M.markupProfit = L.filter(l=>l.mk).reduce((s,l)=>s+l.q*(l.u-l.c),0);
+  M.own = L.filter(l=>!l.mk).reduce((s,l)=>s+l.q*l.u,0);
+  const dv=num($("disc").value);
+  M.disc = $("discType").value==="pct" ? M.sub*dv/100 : dv;
+  M.ex = M.sub-M.disc; M.vat = M.ex*num(CFG.vatPct)/100; M.gt = M.ex+M.vat;
+  M.margin = M.ex - M.supplierCost;
+  M.deposit = M.gt*num(CFG.quote.depositPct)/100;
+  return M;
+}
+
+/* ---------- bill of materials ---------- */
+function panelWidth(){ const p=($("panelSize").value||"").split(/[x×*]/i).map(v=>num(v)); return p[1]||1135; }
+function bomSets(P){
+  const sets=[];
+  for(let i=1;i<=3;i++){ const m=Math.round(num($("bs_m"+i).value)), t=Math.round(num($("bs_t"+i).value)); if(m>0&&t>0) sets.push({m,t}); }
+  if(!sets.length && P>0){ const T=Math.ceil(P/(2*Math.max(1,num(CFG.bom.perRowMax)))); sets.push({m:Math.ceil(P/(2*T)),t:T,auto:true}); }
+  return sets;
+}
+function computeBOM(P, mount){
+  if(!mount.bom || P<=0) return null;
+  const typ=mount.bom, Bw=panelWidth(), sets=bomSets(P);
+  const co=1+num(CFG.bom.clampOver)/100, fo=1+num(CFG.bom.fastOver)/100;
+  let Rt=0,ext=0,W=0,mid=0,end=0,cap=0,T=0; const rails={}, info=[];
+  sets.forEach(s=>{
+    let G=s.m*(Bw+18)+20; const g=Math.max(0,Math.ceil(G/35000)-1); G+=150*g;
+    const R=Math.max(2,Math.ceil((G-2000)/3300)+1), bays=R-1, br=bays<=3?1:bays<=5?2:3, k=Math.max(1,Math.ceil(G/8200));
+    const len=(Math.round((G/k/1000+0.06)*100)/100).toFixed(2);
+    Rt+=s.t*R; ext+=s.t*4*(k-1); W+=s.t*2*br; mid+=4*s.t*Math.max(0,s.m-1-g); end+=8*s.t*(1+g); cap+=2*s.m*s.t; T+=s.t;
+    rails[len]=(rails[len]||0)+s.t*4*k;
+    info.push(Object.assign({},s,{G,g,R,k,len}));
+  });
+  const raw12=(typ==="A"?6:10)*Rt+8*ext+2*W, m8=Math.round((mid+end)*fo);
+  const prof = $("railProf").value==="auto" ? (typ==="A"?"50":"65") : $("railProf").value;
+  const q={ bfs:typ==="B"?Rt:0, bfd:typ==="B"?Rt:0, frontA:typ==="A"?Rt:0, backA:typ==="A"?Rt:0, frontB:typ==="B"?Rt:0, backB:typ==="B"?Rt:0, diagB:typ==="B"?Rt:0,
+    rafter:Rt, ["ext"+prof]:ext, wedge:Math.round(4*Rt*co), wc12:Math.round(4*Rt*fo),
+    mid:Math.round(mid*co), end:Math.round(end*co), cs8:m8, nsq:m8, nhd:m8, ws8:m8,
+    bh12:Math.round(raw12*fo), nh12:Math.round(raw12*fo), ws12:Math.round(raw12*fo), wp12:Math.round(2*raw12*fo),
+    rope:W, eye:Math.round(2*W*fo), rclamp:6*W, tb:W, anti:Math.max(1,Math.ceil(cap/400)) };
+  const items=[];
+  CFG.parts.forEach(p=>{
+    if(p.perM){ if(p.id!=="rail"+prof) return;
+      Object.keys(rails).sort().forEach(len=>items.push({id:p.id+"@"+len,grp:p.grp,code:p.code,desc:`${p.desc} – ${len} m`,spec:p.spec,need:rails[len],price:p.price*num(len),sup:true}));
+    } else if(q[p.id]>0) items.push({id:p.id,grp:p.grp,code:p.code,desc:p.desc,spec:p.spec,need:q[p.id],price:p.price,sup:true});
+  });
+  const b=CFG.bom, holes = typ==="A" ? 2*Rt : 0;
+  if(typ==="A"){ const vol=holes*Math.PI*(num(b.holeDia)/2000)**2*num(b.holeDepth);
+    items.push({id:"conc",grp:"Your materials",code:"–",desc:b.bagLabel,spec:`${holes} holes Ø${b.holeDia} mm × ${b.holeDepth} m = ${fx(vol,2)} m³`,need:Math.ceil(vol/Math.max(0.001,num(b.bagYield))),price:num(b.bagPrice)}); }
+  else items.push({id:"anchor",grp:"Your materials",code:"–",desc:b.anchorLabel,spec:`${num(b.anchorsPerRafter)} per rafter × ${Rt} rafters`,need:Math.ceil(Rt*num(b.anchorsPerRafter)),price:num(b.anchorPrice)});
+  items.push({id:"galv",grp:"Your materials",code:"–",desc:b.galvLabel,spec:`1 can per ${b.galvPerRafters} rafters`,need:Math.max(1,Math.ceil(Rt/Math.max(1,num(b.galvPerRafters)))),price:num(b.galvPrice)});
+  items.forEach(it=>{ it.stock=num(CFG.stock[it.id]); it.order=Math.max(0,it.need-it.stock); });
+  const cost = items.filter(i=>i.sup).reduce((s,i)=>s+i.need*i.price,0);
+  return {typ,sets:info,Rt,holes,cap,T,ext,W,prof,items,cost,orderCost:items.reduce((s,i)=>s+i.order*i.price,0)};
+}
+function renderBOM(M){
+  const B=M.bom;
+  $("bomNA").hidden = !!M.mount.bom; $("bomMain").hidden = !M.mount.bom; $("useBomWrap").hidden = !M.mount.bom;
+  const sets = bomSets(M.panels);
+  for(let i=1;i<=3;i++){ const m=num($("bs_m"+i).value), t=num($("bs_t"+i).value); $("bs_c"+i).textContent = m>0&&t>0 ? 2*m*t : ""; }
+  if(sets[0]?.auto){ $("bs_m1").placeholder=`auto ${sets[0].m}`; $("bs_t1").placeholder=`auto ${sets[0].t}`; $("bs_c1").textContent = 2*sets[0].m*sets[0].t; }
+  else { $("bs_m1").placeholder=""; $("bs_t1").placeholder=""; }
+  if(!B){ $("bomBody").innerHTML=`<tr><td colspan="7" class="note">Enter the number of panels.</td></tr>`; $("bomSum").innerHTML=""; $("layoutMsg").innerHTML=""; $("h5").textContent=""; return; }
+  $("layoutMsg").innerHTML = B.cap!==M.panels ? `<div class="callout warn"><span class="pill warn">LAYOUT</span> Tables hold ${B.cap} panels, quote is for ${M.panels}. Adjust panels per row or tables.</div>` : `<div class="note"><span class="pill good">LAYOUT OK</span> ${B.cap} panels on ${B.T} table${B.T>1?"s":""}.</div>`;
+  $("bomSum").innerHTML = B.sets.map((s,i)=>`<span>Set ${i+1}: ${s.t} × ${fx(s.G/1000,2)} m table, ${s.m}/row, ${s.R} rafters</span>`).join("") +
+    `<span>${B.Rt} rafters</span>${B.holes?`<span>${B.holes} holes</span>`:""}<span>${B.W} bracing ropes</span><span>Supplier parts ${money(B.cost)}</span><span>To order ${money(B.orderCost)}</span>`;
+  let html="",grp="";
+  B.items.forEach(it=>{ if(it.grp!==grp){ grp=it.grp; html+=`<tr class="grp"><td colspan="7">${esc(grp)}</td></tr>`; }
+    html+=`<tr><td><input type="checkbox" data-bchk="${esc(it.id)}" ${bomChecks[it.id]?"checked":""} aria-label="Loaded"></td>
+     <td>${esc(it.desc)}<span class="sm">${it.code!=="–"?esc(it.code)+" · ":""}${esc(it.spec)}</span></td>
+     <td class="r mono"><b>${it.need}</b></td>
+     <td class="r" style="width:90px"><input type="number" min="0" data-stock="${esc(it.id)}" value="${CFG.stock[it.id]??""}" placeholder="0" aria-label="In stock"></td>
+     <td class="r mono ${it.order?"short":"okq"}">${it.order||"✓"}</td>
+     <td class="r">${money(it.price)}</td><td class="r">${money(it.order*it.price)}</td></tr>`; });
+  $("bomBody").innerHTML = html;
+  const toOrder = B.items.filter(i=>i.order).length;
+  $("h5").textContent = toOrder ? `${toOrder} items to order` : "all in stock";
+}
+function renderTools(){ $("toolsList").innerHTML = (CFG.bom.tools||[]).map((t,i)=>`<li><input type="checkbox" id="tool${i}" data-tool="${i}" ${bomChecks["tool"+i]?"checked":""}><label for="tool${i}">${esc(t)}</label></li>`).join(""); }
+function buildBomPrint(){
+  const M=lastM||compute(), B=M.bom, C=CFG.company;
+  if(!B){ $("bomDoc").innerHTML="<p>No bill of materials for this structure type.</p>"; return; }
+  let rows="",grp="";
+  B.items.forEach(it=>{ if(it.grp!==grp){ grp=it.grp; rows+=`<tr class="sec"><td colspan="8">${esc(grp)}</td></tr>`; }
+    rows+=`<tr><td style="font:7.5pt var(--mono)">${esc(it.code)}</td><td>${esc(it.desc)}<br><span style="color:#555;font-size:8pt">${esc(it.spec)}</span></td><td class="r"><b>${it.need}</b></td><td class="r">${it.stock||""}</td><td class="r"><b>${it.order||""}</b></td><td class="bx"><span class="box"></span></td><td class="bx"><span class="box"></span></td><td class="bx"><span class="box"></span></td></tr>`; });
+  $("bomDoc").innerHTML = `
+  <div class="hd"><div style="display:flex;gap:14px;align-items:center">${C.logo?`<img src="${C.logo}" alt="">`:""}<div class="co"><b>${esc(C.name)}</b><br>Bill of materials &amp; pick list</div></div>
+   <div class="qt"><h1 style="font-size:17pt">BILL OF MATERIALS</h1><table>
+    <tr><td>Quote no.</td><td><b>${esc($("q_no").value)}</b></td></tr>
+    <tr><td>Supplier quote</td><td>${esc($("supRef").value)||"–"}</td></tr>
+    <tr><td>Printed</td><td>${dfmt(new Date())}</td></tr></table></div></div>
+  <div class="blocks">
+   <div class="blk"><h3>Job</h3><b>${esc($("c_co").value)||"&nbsp;"}</b>${$("c_proj").value?" · "+esc($("c_proj").value):""}<br>${[esc($("c_addr").value),esc(M.town)].filter(Boolean).join(", ")} (${fx(M.km,0)} km)<br>Contact: ${[esc($("c_name").value),esc($("c_phone").value)].filter(Boolean).join(" · ")}</div>
+   <div class="blk"><h3>Structure</h3>${esc(cleanLabel(M.mount.label))}<br>${M.panels} × ${fx(M.w,0)} W panels (${fx(M.kwp,2)} kWp) · panel ${esc($("panelSize").value)} mm<br>
+    ${B.sets.map((s,i)=>`Set ${i+1}: ${s.t} table${s.t>1?"s":""} × ${s.m} per row × 2 rows (${fx(s.G/1000,2)} m, ${s.R} rafters)`).join("<br>")}<br>
+    ${B.Rt} rafters${B.holes?` · ${B.holes} foundation holes`:""} · ${B.W} bracing ropes</div>
+  </div>
+  <table class="items"><thead><tr><th>Code</th><th>Part</th><th class="r">Need</th><th class="r">Stock</th><th class="r">Order</th><th class="bx">Ordered</th><th class="bx">Received</th><th class="bx">Loaded</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="blk" style="margin-top:12px"><h3>Tools &amp; site kit</h3><ul class="toolsP">${(CFG.bom.tools||[]).map(t=>`<li><span class="box"></span> ${esc(t)}</li>`).join("")}</ul></div>
+  <div class="sign" style="grid-template-columns:1fr 1fr"><div>Checked by</div><div>Date</div></div>`;
+}
+function orderText(){ const B=lastM?.bom; if(!B) return "";
+  const rows=B.items.filter(i=>i.order&&i.sup); if(!rows.length) return "";
+  return `Order – ${$("q_no").value} ${$("c_proj").value||""} (${lastM.panels} panels)\n` + rows.map(i=>`${i.code}\t${i.desc}\t${i.order}`).join("\n"); }
+function copyText(t){
+  const fallback=()=>{ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); toast("Order list copied"); }catch(e){ toast("Could not copy – select the text manually"); } ta.remove(); };
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(()=>toast("Order list copied"),fallback); else fallback();
+}
+/* ---------- Save PDF (direct download; falls back to print dialog when offline) ---------- */
+function pdfName(kind){ return [kind,$("q_no").value,$("c_co").value,$("c_proj").value].filter(Boolean).join("_").replace(/[^\w\-]+/g,"_")+".pdf"; }
+function loadPdfLib(){ return new Promise((ok,no)=>{ if(window.html2pdf) return ok(); const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"; sc.onload=ok; sc.onerror=no; document.head.appendChild(sc); }); }
+function pdfOpts(name){ return { margin:[10,12,10,12], filename:name, image:{type:"jpeg",quality:0.95}, html2canvas:{scale:2,backgroundColor:"#ffffff"},
+  jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}, pagebreak:{mode:["css","legacy"],avoid:["tr",".blk",".tot",".sign"]} }; }
+async function pdfBlob(id){ document.body.classList.add("pdfmode"); try{ return await html2pdf().set(pdfOpts("x.pdf")).from($(id)).outputPdf("blob"); } finally { document.body.classList.remove("pdfmode"); } }
+async function savePdf(id, name){
+  toast("Preparing PDF…");
+  try{ await loadPdfLib(); }catch(e){ toast("Offline – choose 'Save as PDF' in the print dialog"); if(id==="bomDoc") document.body.classList.add("print-bom"); setTimeout(()=>window.print(),300); return; }
+  document.body.classList.add("pdfmode");
+  try{
+    await html2pdf().set({ margin:[10,12,10,12], filename:name, image:{type:"jpeg",quality:0.95}, html2canvas:{scale:2,backgroundColor:"#ffffff"},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}, pagebreak:{mode:["css","legacy"],avoid:["tr",".blk",".tot",".sign"]} }).from($(id)).save();
+    toast("PDF saved");
+  }catch(e){ toast("PDF failed – use Print instead"); }
+  document.body.classList.remove("pdfmode");
+}
+
+/* ---------- OneDrive via Microsoft 365 sign-in (Microsoft Graph) ----------
+   One-time setup per computer: ⚙-free "Set up OneDrive" dialog asks for
+   1) the Application (client) ID from the Microsoft Entra app registration, and
+   2) the share link of the OneDrive "Clients" folder (edit rights).
+   Paste the ID / link below to skip typing them on each computer.            */
+const APP_CLIENT_ID = "";      // e.g. "0a1b2c3d-...."
+const APP_CLIENTS_LINK = "";   // e.g. "https://company-my.sharepoint.com/:f:/g/personal/..."
+const OD = { msal:null, account:null, clients:null, app:null, clientList:[], clientDir:null, clientName:"", err:"", files:[] };
+const GRAPH = "https://graph.microsoft.com/v1.0";
+const SCOPES = ["Files.ReadWrite.All","User.Read"];
+function odCfg(){ let c={}; try{ c=JSON.parse(localStorage.getItem("structQuoteOD")||"{}"); }catch(e){} return { clientId:(c.clientId||APP_CLIENT_ID||"").trim(), link:(c.link||APP_CLIENTS_LINK||"").trim() }; }
+function odSetCfg(c){ try{ localStorage.setItem("structQuoteOD", JSON.stringify(c)); }catch(e){} }
+const odConfigured = () => { const c=odCfg(); return !!(c.clientId && c.link); };
+const safeName = s => String(s||"").replace(/[\u2013\u2014]/g,"-").replace(/[\\/:*?"<>|#%]+/g," ").replace(/\s+/g," ").trim().replace(/[. ]+$/,"").slice(0,80);
+const normName = s => String(s||"").toLowerCase().replace(/\(pty\)|\bpty\b|\bltd\b|\bcc\b|\binc\b|\bllc\b|\(|\)/g,"").replace(/[^a-z0-9]/g,"");
+function lev(a,b){ if(Math.abs(a.length-b.length)>3) return 9; const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++) d[0][j]=j;
+  for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
+
+/* ---- sign-in ---- */
+function msalApp(){
+  const c=odCfg(); if(!c.clientId || !window.msal) return null;
+  if(!OD.msal || OD.msalId!==c.clientId){
+    OD.msal = new msal.PublicClientApplication({ auth:{ clientId:c.clientId, authority:"https://login.microsoftonline.com/common",
+      redirectUri: location.origin + location.pathname.replace(/index\.html$/i,"") }, cache:{ cacheLocation:"localStorage" } });
+    OD.msalId=c.clientId;
+  }
+  return OD.msal;
+}
+async function odToken(interactive){
+  const m=msalApp(); if(!m) throw Object.assign(new Error("Sign-in is not set up"),{code:"setup"});
+  let acc = OD.account || m.getActiveAccount() || m.getAllAccounts()[0];
+  if(!acc){ if(!interactive) throw Object.assign(new Error("Not signed in"),{code:"login"});
+    acc = (await m.loginPopup({ scopes:SCOPES, prompt:"select_account" })).account; }
+  OD.account=acc; m.setActiveAccount(acc);
+  try{ return (await m.acquireTokenSilent({ scopes:SCOPES, account:acc })).accessToken; }
+  catch(e){ if(!interactive) throw Object.assign(new Error("Sign-in expired"),{code:"login"}); return (await m.acquireTokenPopup({ scopes:SCOPES, account:acc })).accessToken; }
+}
+/* ---- Graph helpers (a "dir" is {d: driveId, id: itemId, name}) ---- */
+async function gfetch(path, opt={}){
+  const t = await odToken(true);
+  const r = await fetch(path.startsWith("http")?path:GRAPH+path, Object.assign({}, opt, { headers:Object.assign({ Authorization:"Bearer "+t }, opt.headers||{}) }));
+  if(r.status===404) return null;
+  if(!r.ok){ let m="HTTP "+r.status; try{ m=(await r.json()).error.message||m; }catch(e){} throw Object.assign(new Error(m),{status:r.status}); }
+  if(r.status===204) return {};
+  return (r.headers.get("content-type")||"").includes("json") ? r.json() : r;
+}
+const itemAt = (dir,name) => `/drives/${dir.d}/items/${dir.id}:/${encodeURIComponent(name)}`;
+async function gList(dir){
+  const out=[]; let url=`/drives/${dir.d}/items/${dir.id}/children?$top=500`;
+  while(url){ const j=await gfetch(url); if(!j) break; out.push(...(j.value||[])); url=j["@odata.nextLink"]||null; }
+  return out;
+}
+async function gReadItemText(d,id){ const it=await gfetch(`/drives/${d}/items/${id}`); if(!it) return null;
+  const u=it["@microsoft.graph.downloadUrl"]; const r = u ? await fetch(u) : await gfetch(`/drives/${d}/items/${id}/content`); return r.text(); }
+async function readJSON(dir,name){ try{ const it=await gfetch(itemAt(dir,name)); if(!it||!it.file) return null; return JSON.parse(await gReadItemText(dir.d,it.id)); }catch(e){ if(e.code==="login"||e.code==="setup") throw e; return null; } }
+async function writeFile(dir,name,data){
+  const blob = data instanceof Blob ? data : new Blob([data],{type:"application/json"});
+  if(blob.size < 3.5e6) return gfetch(itemAt(dir,name)+":/content",{ method:"PUT", body:blob, headers:{ "Content-Type":blob.type||"application/octet-stream" } });
+  const s = await gfetch(itemAt(dir,name)+":/createUploadSession",{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ item:{ "@microsoft.graph.conflictBehavior":"replace" } }) });
+  const CH=3276800; let res;
+  for(let i=0;i<blob.size;i+=CH){ const part=blob.slice(i,Math.min(i+CH,blob.size));
+    res=await fetch(s.uploadUrl,{ method:"PUT", headers:{ "Content-Range":`bytes ${i}-${i+part.size-1}/${blob.size}` }, body:part });
+    if(!res.ok) throw new Error("Upload failed ("+res.status+")"); }
+  return res;
+}
+async function gGetDir(dir,name,create){
+  const it=await gfetch(itemAt(dir,name));
+  if(it && it.folder) return { d:dir.d, id:it.id, name:it.name };
+  if(!create) return null;
+  const n=await gfetch(`/drives/${dir.d}/items/${dir.id}/children`,{ method:"POST", headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ name, folder:{}, "@microsoft.graph.conflictBehavior":"fail" }) });
+  return { d:dir.d, id:n.id, name:n.name };
+}
+function shareToken(url){ return "u!"+btoa(unescape(encodeURIComponent(url.trim()))).replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-"); }
+async function odResolveLink(link){
+  const it = await gfetch(`/shares/${shareToken(link)}/driveItem`);
+  if(!it) throw Object.assign(new Error("link"),{status:404});
+  if(!it.folder) throw new Error("That link is to a file, not the Clients folder");
+  return { d: it.parentReference.driveId, id: it.id, name: it.name };
+}
+
+/* ---- connect / shared data ---- */
+async function odConnect(interactive){
+  if(!odConfigured()){ if(interactive) openOdSetup(); odUI(); return; }
+  if(!window.msal){ OD.err="Microsoft sign-in could not load – check the internet connection and reload."; odUI(); return; }
+  try{
+    await odToken(interactive);
+    OD.clients = await odResolveLink(odCfg().link);
+    OD.app = await gGetDir(OD.clients,"_Quote App",true);
+    OD.err="";
+    await odLoadShared(); await odListClients();
+    if(!$("c_co").value.trim()) $("q_no").value = await odNextQuoteNo();
+    odMatchTyped(); odUI(); render();
+    if(interactive) toast(`Connected – ${OD.clientList.length} clients found`);
+  }catch(e){
+    OD.clients=null;
+    const code=e.code||e.errorCode||"";
+    if(code==="login"||code==="setup"){ OD.err=""; odUI(); return; }
+    if(/user_cancelled/.test(code)){ OD.err=""; }
+    else if(/popup_window|empty_window|popup/.test(code)) OD.err="The Microsoft sign-in window was blocked. Allow pop-ups for this site and click Sign in again.";
+    else if(e.status===403||e.status===404||e.status===401) OD.err="This login cannot open the Clients folder link. Check the folder is shared with this account (can edit) and that the link in Set up OneDrive is correct.";
+    else OD.err="OneDrive connection failed: "+(e.message||code);
+    odUI();
+  }
+}
+async function odAutoConnect(){
+  odUI();
+  const m=msalApp(); if(!m || !odConfigured()) return;
+  try{ await m.handleRedirectPromise(); }catch(e){}
+  if(m.getAllAccounts().length) odConnect(false);
+}
+async function odLoadShared(){
+  const s = await readJSON(OD.app,"settings.json");
+  if(s){ const st=CFG.stock; CFG = mergeDeep(clone(DEFAULT_CONFIG), s); CFG.stock=st; patchCfg(); }
+  else await writeFile(OD.app,"settings.json",JSON.stringify(cfgNoStock(),null,1));
+  const st = await readJSON(OD.app,"stock.json");
+  if(st) CFG.stock = st; else await writeFile(OD.app,"stock.json",JSON.stringify(CFG.stock||{},null,1));
+  store("structQuoteConfig", JSON.stringify(CFG));
+  fillSelects(); renderTools();
+  $("topName").textContent = CFG.company.name || "Structure Quote";
+  if(CFG.company.logo){ $("topLogo").src=CFG.company.logo; $("topLogo").hidden=false; } else $("topLogo").hidden=true;
+}
+async function odListClients(){
+  const list=(await gList(OD.clients)).filter(x=>x.folder && !x.name.startsWith("_") && !x.name.startsWith("."))
+    .map(x=>({ name:x.name, n:normName(x.name), h:{ d:OD.clients.d, id:x.id, name:x.name } }));
+  list.sort((a,b)=>a.name.localeCompare(b.name)); OD.clientList=list;
+}
+async function odNextQuoteNo(){
+  const ymd=ymdStr(); const c=(await readJSON(OD.app,"counter.json"))||{};
+  const n = c.d===ymd ? (c.n||0)+1 : 1;
+  await writeFile(OD.app,"counter.json",JSON.stringify({d:ymd,n}));
+  return `${CFG.quote.prefix}-${ymd}-${String(n).padStart(2,"0")}`;
+}
+
+/* ---- clients ---- */
+function clientMatches(q){
+  const n=normName(q); if(n.length<2) return [];
+  return OD.clientList.map(c=>({c,s: c.n===n?0 : (c.n.startsWith(n)||n.startsWith(c.n))?1 : (c.n.includes(n)||n.includes(c.n))?2 : lev(c.n,n)<=2?3 : 9}))
+    .filter(x=>x.s<9).sort((a,b)=>a.s-b.s||a.c.name.localeCompare(b.c.name)).slice(0,6).map(x=>x.c);
+}
+function odMatchTyped(){ const v=$("c_co").value.trim(); if(!OD.clients||!v) return;
+  const ex=OD.clientList.find(c=>c.n===normName(v)); if(ex){ OD.clientDir=ex.h; OD.clientName=ex.name; } }
+async function odFillContact(h){ try{ const info=await readJSON(h,"client.json"); if(!info) return;
+  [["c_name","contact"],["c_phone","phone"],["c_email","email"]].forEach(([id,k])=>{ if(!$(id).value && info[k]) $(id).value=info[k]; }); render(); }catch(e){} }
+async function odSelectClient(i){
+  const c=OD.clientList[i]; if(!c) return;
+  OD.clientDir=c.h; OD.clientName=c.name; $("c_co").value=c.name; render();
+  try{ const info = await readJSON(c.h,"client.json");
+    if(info){ [["c_name","contact"],["c_phone","phone"],["c_email","email"]].forEach(([id,k])=>{ if(!$(id).value && info[k]) $(id).value=info[k]; }); render(); } }catch(e){}
+}
+function renderClientBox(){
+  const box=$("clientBox"); if(!box) return;
+  if(!OD.clients){ box.innerHTML=`<span class="note">${odConfigured()?"Sign in to OneDrive (top bar) to search your existing clients.":"Set up OneDrive (top bar) to search your existing clients and save quotes to their folders."}</span>`; return; }
+  const v=$("c_co").value.trim();
+  if(OD.clientName && normName(v)===normName(OD.clientName)){
+    box.innerHTML=`<span class="pill good">EXISTING CLIENT</span> <span class="mono" style="font-size:13px">Clients/${esc(OD.clientName)}</span>`; return; }
+  OD.clientDir=null; OD.clientName="";
+  const exact=OD.clientList.find(c=>c.n===normName(v));
+  if(v && exact){ OD.clientDir=exact.h; OD.clientName=exact.name; odFillContact(exact.h); box.innerHTML=`<span class="pill good">EXISTING CLIENT</span> <span class="mono" style="font-size:13px">Clients/${esc(exact.name)}</span>`; return; }
+  if(!v){ box.innerHTML=`<span class="note">Type the client name – ${OD.clientList.length} existing clients will be searched.</span>`; return; }
+  const m=clientMatches(v);
+  box.innerHTML = (m.length?`<span class="note">Existing clients:</span> `+m.map(c=>`<button type="button" class="btn sm" data-client="${OD.clientList.indexOf(c)}">${esc(c.name)}</button>`).join(" "):"")
+    + ` <span class="pill info">NEW CLIENT</span> <span class="note">folder "Clients/${esc(safeName(v))}" is created when you save${m.length?" – or pick an existing client":""}</span>`;
+}
+function odUI(){
+  const b=$("btnOD"); if(!b) return;
+  if(OD.clients){ b.textContent=`● ${OD.account?.name||OD.account?.username||"OneDrive"}`; b.title="Connected to OneDrive – click for account and folder"; b.classList.add("on"); }
+  else { b.textContent = odConfigured() ? "Sign in to OneDrive" : "Set up OneDrive"; b.title=""; b.classList.remove("on"); }
+  $("btnSave").textContent = OD.clients ? "Save to OneDrive" : "Save quote";
+  $("odMsg").hidden = !OD.err; $("odMsg").innerHTML = OD.err ? `<span class="pill warn">ONEDRIVE</span> ${esc(OD.err)}` : "";
+  renderClientBox();
+}
+function openOdSetup(){
+  const c=odCfg();
+  $("odClientId").value=c.clientId; $("odLink").value=c.link;
+  $("odStatus").innerHTML = OD.clients ? `<span class="pill good">CONNECTED</span> ${esc(OD.account?.username||"")} · folder <b>${esc(OD.clients.name)}</b> · ${OD.clientList.length} clients`
+    : OD.account ? `<span class="pill info">SIGNED IN</span> ${esc(OD.account.username)} – folder not connected` : `<span class="pill warn">NOT CONNECTED</span>`;
+  $("odSignOut").hidden = !OD.account;
+  $("odSetup").hidden=false;
+}
+async function odSaveSetup(){
+  const cid=$("odClientId").value.trim(), link=$("odLink").value.trim();
+  if(!/^[0-9a-f-]{36}$/i.test(cid)){ toast("The Application (client) ID looks wrong – it is 36 characters like 0a1b2c3d-…"); return; }
+  if(!/^https:\/\//i.test(link)){ toast("Paste the full share link of the Clients folder (starts with https://)"); return; }
+  odSetCfg({clientId:cid, link}); $("odSetup").hidden=true; await odConnect(true);
+}
+async function odSignOut(){
+  const m=msalApp(); const acc=OD.account;
+  Object.assign(OD,{account:null,clients:null,app:null,clientList:[],clientDir:null,clientName:""});
+  $("odSetup").hidden=true; odUI(); render();
+  try{ if(m && acc) await m.logoutPopup({ account:acc, mainWindowRedirectUri: location.href }); }catch(e){ try{ m.setActiveAccount(null); localStorage.removeItem("msal.account.keys"); }catch(_){} }
+  toast("Signed out");
+}
+
+/* ---- save / open quotes ---- */
+async function odSaveQuote(){
+  render();
+  const name=$("c_co").value.trim();
+  if(!name){ toast("Enter the client company first"); $("c_co").focus(); return; }
+  const btn=$("btnSave"); btn.disabled=true; btn.textContent="Saving…";
+  try{
+    let dir=OD.clientDir;
+    if(!dir){ const ex=OD.clientList.find(c=>c.n===normName(name));
+      dir = ex ? ex.h : await gGetDir(OD.clients, safeName(name), true);
+      if(!ex) await odListClients(); OD.clientDir=dir; OD.clientName=dir.name; $("c_co").value=dir.name; }
+    const qdir=await gGetDir(dir,"Quotes",true);
+    const base=safeName([$("q_no").value,$("c_proj").value].filter(Boolean).join(" - "))||"Quote";
+    await writeFile(qdir,base+".json",JSON.stringify(getState(),null,1));
+    const info=(await readJSON(dir,"client.json"))||{};
+    Object.assign(info,{name:dir.name},...[["contact","c_name"],["phone","c_phone"],["email","c_email"]].map(([k,id])=>$(id).value?{[k]:$(id).value}:{}),{updated:new Date().toISOString()});
+    await writeFile(dir,"client.json",JSON.stringify(info,null,1));
+    renderClientBox(); toast("Saving PDF…");
+    try{
+      await loadPdfLib();
+      buildPrint(); await writeFile(qdir,base+".pdf",await pdfBlob("printDoc"));
+      if($("saveBom").checked && lastM?.bom){ buildBomPrint(); await writeFile(qdir,base+" - BOM.pdf",await pdfBlob("bomDoc")); }
+      toast(`Saved to Clients/${dir.name}/Quotes`);
+    }catch(e){ toast(`Quote saved to Clients/${dir.name}/Quotes – the PDF could not be made (${e.message||"check internet"})`); }
+  }catch(e){ toast("Could not save to OneDrive: "+(e.message||e)); if(e.code==="login") odConnect(true); }
+  finally{ btn.disabled=false; odUI(); }
+}
+async function odOpenList(){
+  if(!OD.clients){ $("fileLoad").click(); return; }
+  const dir=OD.clientDir, body=$("listBody");
+  $("listTitle").textContent = dir ? `Quotes – ${dir.name}` : "Open a quote";
+  OD.files=[];
+  if(!dir) body.innerHTML=`<p class="note">Type or pick the client name in step 1 first, then click Open quote again. Or open a saved file:</p>`;
+  else{
+    body.innerHTML=`<p class="note">Loading…</p>`; $("listModal").hidden=false;
+    try{ const q=await gGetDir(dir,"Quotes",false);
+      if(q) OD.files=(await gList(q)).filter(f=>f.file && /\.json$/i.test(f.name)).map(f=>({n:f.name,d:q.d,id:f.id,t:f.lastModifiedDateTime}));
+    }catch(e){ toast("Could not list quotes: "+e.message); }
+    OD.files.sort((a,b)=>b.n.localeCompare(a.n));
+    body.innerHTML = OD.files.length ? `<div class="tw"><table><tbody>${OD.files.map((f,i)=>`<tr><td>${esc(f.n.replace(/\.json$/i,""))}<span class="sm">${f.t?dfmt(new Date(f.t)):""}</span></td><td class="r"><button class="btn sm primary" type="button" data-openq="${i}">Open</button></td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No saved quotes for this client yet.</p>`;
+  }
+  body.innerHTML += `<p><button class="btn sm" type="button" id="listFile">Open a file from this computer…</button></p>`;
+  $("listModal").hidden=false;
+}
+async function odOpenQuote(i){
+  const f=OD.files?.[i]; if(!f) return;
+  try{ const s=JSON.parse(await gReadItemText(f.d,f.id)); const keep=OD.clientDir; setState(s); OD.clientDir=keep; OD.clientName=keep?keep.name:""; $("listModal").hidden=true; render(); toast("Quote opened"); }
+  catch(e){ toast("Could not open that quote: "+e.message); }
+}
+
+/* ---------- render ---------- */
+let lastM=null;
+function render(){
+  const M=compute(); lastM=M;
+  $("customKmWrap").hidden = $("town").value!=="__custom";
+  $("townKm").textContent = `${fx(M.km,0)} km from ${CFG.base.town}`;
+  $("kmShow").value = M.km;
+  $("stepInstall").hidden = !M.install;
+  $("wrapLabRate").hidden = $("lm_fixed").checked; $("wrapLabFixed").hidden = !$("lm_fixed").checked;
+  $("foundWrap").hidden = !M.mount.holes;
+  $("holesHint").textContent = `auto ${M.holesAuto}`; $("holes").placeholder = `auto (${M.holesAuto})`;
+  $("tripsHint").textContent = `auto ${M.tripsAuto}`; $("trips").placeholder = `auto (${M.tripsAuto})`;
+  $("customWrap").hidden = !customs.length;
+  $("h1").textContent = [$("c_co").value, M.town].filter(Boolean).join(" · ");
+  $("h2").textContent = M.panels ? `${M.panels} panels · ${fx(M.kwp,2)} kWp` : "";
+  $("h3").textContent = `${fx(M.km,0)} km · ${M.trips} trip${M.trips===1?"":"s"}`;
+  const tierTxt = (M.mount.tiers||[]).map(([mx,r])=>`≤${mx}: ${money(r)}`).join(" · ");
+  const ovUsed = num($("structOverride").value)>0;
+  renderBOM(M);
+  $("structInfo").innerHTML = `<b>Supplier cost:</b> <span class="mono">${money(M.structUnit)}</span>/panel × ${M.panels} = <span class="mono">${money(M.structCost)}</span> ${ovUsed?'<span class="pill info">FROM SUPPLIER QUOTE</span>':M.bomPriced?'<span class="pill good">FROM BILL OF MATERIALS</span>':'<span class="pill good">RATE TABLE</span>'}<br>
+   <b>Sell:</b> <span class="mono">${money(M.structUnit*(1+M.mk/100))}</span>/panel · total <span class="mono">${money(M.structCost*(1+M.mk/100))}</span> (${fx(M.mk,1)}% markup)<br>
+   <span class="note">Rate table (panels ≤ n: R/panel) – ${tierTxt}${M.bom?` · BOM cost ${money(M.bom.cost)} (${money(M.bom.cost/Math.max(1,M.panels))}/panel)`:""}</span>`;
+  $("extraBody").innerHTML = CFG.extras.map(x=>{ const s=extraState[x.key]; return `<tr><td><input type="checkbox" data-ex="${x.key}" ${s.on?"checked":""} aria-label="Include ${esc(x.label)}"></td><td>${esc(x.label)}</td><td class="r" style="width:80px"><input type="number" min="0" data-exq="${x.key}" value="${esc(s.q)}" aria-label="Quantity"></td><td class="r" style="width:130px"><input type="number" min="0" data-exp="${x.key}" value="${esc(s.p)}" placeholder="${x.price}" aria-label="Price"></td></tr>`; }).join("");
+  let html="",sec="";
+  M.lines.forEach(l=>{ if(l.sec!==sec){ sec=l.sec; html+=`<tr><td colspan="4" class="cat" style="background:var(--surface2)">${esc(sec)}</td></tr>`; }
+    html+=`<tr><td>${esc(l.d)}</td><td class="r">${fx(l.q,2)}</td><td class="r">${money(l.u)}</td><td class="r">${money(l.q*l.u)}</td></tr>`; });
+  $("lineBody").innerHTML = html || `<tr><td colspan="4" class="note">Enter the number of panels to build the quote.</td></tr>`;
+  $("t_sub").textContent=money(M.sub); $("t_disc").textContent="-"+money(M.disc).replace("-","");
+  $("t_ex").textContent=money(M.ex); $("t_vatL").textContent=`VAT ${CFG.vatPct}%`; $("t_vat").textContent=money(M.vat); $("t_gt").textContent=money(M.gt);
+  $("t_depL").textContent=`Deposit ${CFG.quote.depositPct}%`; $("t_dep").textContent=money(M.deposit);
+  const mp = M.ex? M.margin/M.ex*100 : 0;
+  $("marginBox").innerHTML = `<h3>Internal – not printed</h3><div class="totals" style="width:100%">
+   <div class="row"><span>Supplier cost (structure + transport)</span><span class="num">${money(M.supplierCost)}</span></div>
+   <div class="row"><span>Markup profit</span><span class="num">${money(M.markupProfit)}</span></div>
+   <div class="row"><span>Labour, travel &amp; extras</span><span class="num">${money(M.own)}</span></div>
+   <div class="row"><span>Less discount</span><span class="num">${money(-M.disc)}</span></div>
+   <div class="row gt" style="font-size:15px"><span>Gross margin</span><span class="num">${money(M.margin)} · ${fx(mp,1)}%</span></div></div>`;
+  $("h4").textContent = money(M.gt);
+  $("b_sys").textContent = M.panels ? `${M.panels} · ${fx(M.kwp,1)} kWp` : "–"; $("b_ex").textContent=money(M.ex); $("b_mg").textContent=`${fx(mp,0)}%`; $("b_gt").textContent=money(M.gt);
+  $("topQno").textContent = $("q_no").value || "QUOTE";
+  renderClientBox();
+}
+function renderCustom(){
+  $("customBody").innerHTML = customs.map((c,i)=>`<tr data-i="${i}">
+   <td><input data-c="d" value="${esc(c.d)}" placeholder="Description" aria-label="Description"></td>
+   <td class="r" style="width:80px"><input data-c="q" type="number" min="0" value="${esc(c.q)}" aria-label="Qty"></td>
+   <td class="r" style="width:140px"><input data-c="p" type="number" min="0" step="0.01" value="${esc(c.p)}" aria-label="Unit price"></td>
+   <td><button class="btn sm ghost" data-del-c="${i}" type="button" aria-label="Remove">✕</button></td></tr>`).join("");
+}
+
+/* ---------- print ---------- */
+function addDays(iso,d){ const t=new Date(iso||Date.now()); t.setDate(t.getDate()+d); return t; }
+const dfmt = d => d.toLocaleDateString("en-ZA",{day:"2-digit",month:"short",year:"numeric"});
+function buildPrint(){
+  const M=lastM||compute(), C=CFG.company, B=CFG.bank, Q=CFG.quote;
+  const date = $("q_date").value ? new Date($("q_date").value) : new Date();
+  let rows="",sec="";
+  M.lines.forEach(l=>{ if(l.sec!==sec){ sec=l.sec; rows+=`<tr class="sec"><td colspan="4">${esc(sec)}</td></tr>`; }
+    rows+=`<tr><td>${esc(l.d)}</td><td class="r">${fx(l.q,2)}</td><td class="r">${money(l.u)}</td><td class="r">${money(l.q*l.u)}</td></tr>`; });
+  const coLines=[C.address,[C.phone&&("Tel: "+C.phone),C.email].filter(Boolean).join(" · "),C.website,[C.vatNo&&("VAT: "+C.vatNo),C.regNo&&("Reg: "+C.regNo)].filter(Boolean).join(" · ")].filter(Boolean).map(esc).join("<br>");
+  const [pl,pb] = ($("panelSize").value||"").split(/[x×*]/i).map(s=>s.trim());
+  $("printDoc").innerHTML = `
+  <div class="hd"><div style="display:flex;gap:14px;align-items:center">${C.logo?`<img src="${C.logo}" alt="">`:""}<div class="co"><b>${esc(C.name)}</b><br>${C.tagline?esc(C.tagline)+"<br>":""}${coLines}</div></div>
+   <div class="qt"><h1>QUOTATION</h1><table>
+    <tr><td>Quote no.</td><td><b>${esc($("q_no").value)}</b></td></tr>
+    <tr><td>Date</td><td>${dfmt(date)}</td></tr>
+    <tr><td>Valid until</td><td>${dfmt(addDays(date,num(Q.validityDays)))} (${Q.validityDays} days)</td></tr>
+    ${$("c_ref").value?`<tr><td>Your ref.</td><td>${esc($("c_ref").value)}</td></tr>`:""}</table></div></div>
+  <div class="blocks">
+   <div class="blk"><h3>Client</h3><b>${esc($("c_co").value)||"&nbsp;"}</b><br>${[esc($("c_name").value),esc($("c_phone").value),esc($("c_email").value)].filter(Boolean).join(" · ")}</div>
+   <div class="blk"><h3>Project</h3>${$("c_proj").value?`<b>${esc($("c_proj").value)}</b><br>`:""}${[esc($("c_addr").value),esc(M.town)].filter(Boolean).join(", ")}<br>
+    ${M.panels} panels × ${fx(M.w,0)} W = ${fx(M.kwp,2)} kWp${pl&&pb?` · panel ${esc(pl)} × ${esc(pb)} mm`:""}<br>
+    ${esc(cleanLabel(M.mount.label))}${$("layout").value?`<br>${esc($("layout").value)}`:""}<br>Scope: ${M.install?"Supply &amp; install":"Supply only"}</div>
+  </div>
+  <table class="items"><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Total</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="tot">
+   <div class="sav">${$("qNotes").value?`<b>Notes</b><br>${esc($("qNotes").value).replace(/\n/g,"<br>")}`:`<b>Price per panel</b><br>${M.panels?money(M.ex/M.panels)+" excl. VAT":""}<br>${M.kwp?money(M.ex/(M.kwp*1000))+" per Wp excl. VAT":""}`}</div>
+   <table>
+    <tr><td>Subtotal</td><td class="r">${money(M.sub)}</td></tr>
+    ${M.disc?`<tr><td>Discount${$("discType").value==="pct"?` (${num($("disc").value)}%)`:""}</td><td class="r">-${money(M.disc).replace("-","")}</td></tr>`:""}
+    <tr><td>Total excl. VAT</td><td class="r">${money(M.ex)}</td></tr>
+    <tr><td>VAT ${CFG.vatPct}%</td><td class="r">${money(M.vat)}</td></tr>
+    <tr class="gt"><td>Total incl. VAT</td><td class="r">${money(M.gt)}</td></tr>
+    <tr><td>Deposit ${Q.depositPct}%</td><td class="r">${money(M.deposit)}</td></tr>
+   </table></div>
+  <div class="blocks" style="margin-top:12px">
+   <div class="blk"><h3>Banking details</h3>${[["Bank",B.bank],["Account name",B.accName],["Account no.",B.accNo],["Branch code",B.branch],["Account type",B.type]].filter(x=>x[1]).map(x=>`${x[0]}: <b>${esc(x[1])}</b>`).join("<br>")}<br>Reference: <b>${esc($("q_no").value)}</b></div>
+   <div class="blk"><h3>Acceptance</h3>We accept this quotation and its terms and will pay the ${Q.depositPct}% deposit of ${money(M.deposit)} to confirm the order.</div>
+  </div>
+  <div class="terms"><b>Terms &amp; conditions</b>\n${esc(Q.terms)}</div>
+  <div class="sign"><div>Name</div><div>Signature</div><div>Date</div></div>
+  <div class="foot">${esc(C.name)} · Quote ${esc($("q_no").value)}</div>`;
+}
+
+/* ---------- save / load ---------- */
+function getState(){ const s={v:3,fields:{},customs,extraState,bomChecks};
+  document.querySelectorAll("[data-s]").forEach(el=>{ s.fields[el.id] = el.type==="radio"||el.type==="checkbox" ? el.checked : el.value; }); return s; }
+function setState(s){ customs=s.customs||[]; extraState=s.extraState||{}; bomChecks=s.bomChecks||{}; fillSelects(); renderTools();
+  for(const id in (s.fields||{})){ const el=$(id); if(!el) continue; if(el.type==="radio"||el.type==="checkbox") el.checked=!!s.fields[id]; else el.value=s.fields[id]; }
+  renderCustom(); render(); }
+function newQuote(){
+  document.querySelectorAll("[data-s]").forEach(el=>{ if(el.type==="radio") el.checked=el.defaultChecked; else if(el.type==="checkbox") el.checked=false; else if(el.tagName==="SELECT") el.selectedIndex=0; else el.value=el.defaultValue||""; });
+  customs=[]; extraState={}; bomChecks={}; fillSelects(); renderTools(); applyDefaults(); renderCustom(); render(); window.scrollTo(0,0);
+}
+
+/* ---------- settings ---------- */
+const SET_FIELDS = [
+  ["Company",[["company.name","Company name"],["company.tagline","Tagline"],["company.address","Address"],["company.phone","Phone"],["company.email","Email"],["company.website","Website"],["company.vatNo","VAT number"],["company.regNo","Registration number"]]],
+  ["Banking",[["bank.bank","Bank"],["bank.accName","Account name"],["bank.accNo","Account number"],["bank.branch","Branch code"],["bank.type","Account type"]]],
+  ["Quote",[["quote.prefix","Quote number prefix"],["quote.validityDays","Validity (days)","n"],["quote.depositPct","Deposit %","n"],["vatPct","VAT %","n"]]],
+  ["Markup & supplier",[["markup.structure","Default structure markup %","n"],["markup.transport","Supplier transport markup %","n"],["supplierTransport","Default supplier transport (R)","n"]]],
+  ["Labour & travel",[["base.town","Base town"],["labour.perPanel","Install rate per panel (R)","n"],["labour.fixed","Default fixed labour (R)","n"],["labour.holeRate","Drill & concrete per hole (R)","n"],["labour.panelsPerDay","Panels installed per day","n"],["labour.kmRate","Travel rate (R/km)","n"],["labour.nightRate","Accommodation per night (R)","n"]]]
+];
+const getP=(o,p)=>p.split(".").reduce((a,k)=>a?.[k],o);
+const setP=(o,p,v)=>{ const ks=p.split("."); let a=o; ks.slice(0,-1).forEach(k=>a=a[k]); a[ks.at(-1)]=v; };
+const parseLines=(txt,types)=>txt.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split("|").map(s=>s.trim()); return types.map((t,i)=>t==="n"?num(p[i]):(p[i]||"")); }).filter(r=>r[0]!=="");
+let draftLogo=null;
+function openSettings(){
+  draftLogo=CFG.company.logo;
+  let h = SET_FIELDS.map(([t,fs])=>`<section><h3>${t}</h3><div class="grid">${fs.map(([p,l,n])=>`<label class="f">${l}<input data-p="${p}" ${n?'type="number" step="any"':""} value="${esc(getP(CFG,p))}"></label>`).join("")}</div></section>`).join("");
+  h += `<section><h3>Logo</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><img id="logoPrev" style="max-height:60px;${CFG.company.logo?"":"display:none"}" src="${CFG.company.logo||""}" alt="Logo preview"><input type="file" id="logoFile" accept="image/*"><button class="btn sm" type="button" id="logoClear">Remove logo</button></div></section>`;
+  h += `<section><h3>Structure types – supplier rate per panel</h3><p class="note">One line per tier: <span class="mono">max panels | rate</span>. Above the last tier the last rate applies.</p><div class="grid two">${CFG.mounts.map((m,i)=>`<div style="display:grid;gap:6px"><label class="f">Label<input data-mlabel="${i}" value="${esc(m.label)}"></label><label class="f"><textarea data-mtiers="${i}" rows="5">${m.tiers.map(t=>t.join(" | ")).join("\n")}</textarea></label></div>`).join("")}</div></section>`;
+  h += `<section><h3>Bill of materials</h3><div class="grid">${[["bom.perRowMax","Max panels per row (auto layout)"],["bom.clampOver","Clamp oversupply %"],["bom.fastOver","Fastener oversupply %"],["bom.holeDia","Foundation hole Ø (mm)"],["bom.holeDepth","Hole depth (m)"],["bom.bagYield","Concrete yield per bag (m³)"],["bom.bagPrice","Concrete bag price (R)"],["bom.anchorsPerRafter","Anchors per rafter (surface)"],["bom.anchorPrice","Anchor price (R)"],["bom.galvPerRafters","Rafters per cold galv can"],["bom.galvPrice","Cold galv can price (R)"]].map(([p,l])=>`<label class="f">${l}<input data-p="${p}" type="number" step="any" value="${esc(getP(CFG,p))}"></label>`).join("")}</div>
+    <p class="note">Supplier part prices: <span class="mono">id | price</span> (rails are per metre).</p><label class="f"><textarea id="set_parts" rows="10">${CFG.parts.map(p=>`${p.id} | ${p.price}   # ${p.desc}`).join("\n")}</textarea></label>
+    <p class="note">Tools &amp; site kit checklist – one per line.</p><label class="f"><textarea id="set_tools" rows="8">${esc((CFG.bom.tools||[]).join("\n"))}</textarea></label></section>`;
+  h += `<section><h3>Extras (default prices)</h3><div class="grid">${CFG.extras.map((b,i)=>`<label class="f">${esc(b.label)}<input data-exprice="${i}" type="number" step="any" value="${b.price}"></label>`).join("")}</div></section>`;
+  h += `<section><h3>Terms (printed)</h3><label class="f"><textarea id="set_terms" rows="10">${esc(CFG.quote.terms)}</textarea></label></section>`;
+  h += `<section><h3>Towns – km from base (one way)</h3><p class="note"><span class="mono">town | km</span> · approximate road distances; check and adjust.</p><label class="f"><textarea id="set_towns" rows="12">${CFG.towns.map(r=>r.join(" | ")).join("\n")}</textarea></label></section>`;
+  $("setBody").innerHTML=h; $("settings").hidden=false;
+  $("logoFile").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ draftLogo=r.result; $("logoPrev").src=draftLogo; $("logoPrev").style.display=""; }; r.readAsDataURL(f); };
+  $("logoClear").onclick=()=>{ draftLogo=""; $("logoPrev").style.display="none"; };
+}
+function saveSettings(){
+  const c=clone(CFG);
+  document.querySelectorAll("#setBody [data-p]").forEach(el=>setP(c,el.dataset.p,el.type==="number"?num(el.value):el.value));
+  c.company.logo=draftLogo||""; c.quote.terms=$("set_terms").value;
+  document.querySelectorAll("#setBody [data-mlabel]").forEach(el=>c.mounts[el.dataset.mlabel].label=el.value);
+  document.querySelectorAll("#setBody [data-mtiers]").forEach(el=>{ const t=parseLines(el.value,["n","n"]).sort((a,b)=>a[0]-b[0]); if(t.length) c.mounts[el.dataset.mtiers].tiers=t; });
+  document.querySelectorAll("#setBody [data-exprice]").forEach(el=>c.extras[el.dataset.exprice].price=num(el.value));
+  const tw=parseLines($("set_towns").value,["s","n"]); if(tw.length) c.towns=tw;
+  $("set_parts").value.split("\n").forEach(l=>{ const m=l.split("#")[0].split("|").map(x=>x.trim()); const pt=c.parts.find(x=>x.id===m[0]); if(pt && m[1]) pt.price=num(m[1]); });
+  c.bom.tools = $("set_tools").value.split("\n").map(x=>x.trim()).filter(Boolean);
+  CFG=c; persistCfg(); $("settings").hidden=true; afterCfg(); toast("Settings saved");
+}
+function cfgNoStock(){ const c=clone(CFG); delete c.stock; return c; }
+function persistCfg(){ store("structQuoteConfig", JSON.stringify(CFG));
+  if(OD.app) writeFile(OD.app,"settings.json",JSON.stringify(cfgNoStock(),null,1)).catch(e=>toast("Settings not saved to OneDrive: "+e.message)); }
+function persistStock(){ store("structQuoteConfig", JSON.stringify(CFG));
+  if(OD.app) writeFile(OD.app,"stock.json",JSON.stringify(CFG.stock||{},null,1)).catch(e=>toast("Stock not saved to OneDrive: "+e.message)); }
+function afterCfg(){ patchCfg(); fillSelects(); renderTools(); render();
+  $("topName").textContent = CFG.company.name || "Structure Quote";
+  if(CFG.company.logo){ $("topLogo").src=CFG.company.logo; $("topLogo").hidden=false; } else $("topLogo").hidden=true; }
+
+/* ---------- events ---------- */
+document.addEventListener("input", e=>{
+  const t=e.target; if(t.closest("#settings")) return;
+  const tr=t.closest("tr[data-i]");
+  if(t.dataset.c && tr) customs[tr.dataset.i][t.dataset.c]=t.value;
+  else if(t.dataset.exq) extraState[t.dataset.exq].q=t.value;
+  else if(t.dataset.exp) extraState[t.dataset.exp].p=t.value;
+  else if(t.dataset.ex) extraState[t.dataset.ex].on=t.checked;
+  else if(t.dataset.bchk) { bomChecks[t.dataset.bchk]=t.checked; return; }
+  else if(t.dataset.tool!==undefined) { bomChecks["tool"+t.dataset.tool]=t.checked; return; }
+  else if(t.dataset.stock){ if(t.value==="") delete CFG.stock[t.dataset.stock]; else CFG.stock[t.dataset.stock]=num(t.value); clearTimeout(window._st); window._st=setTimeout(persistStock,500); }
+  const ae=document.activeElement, ds=Object.assign({},ae?.dataset), pos=ae?.selectionStart;
+  render();
+  const key=["exq","exp","stock"].find(k=>ds[k]!==undefined);
+  if(key && !ae?.isConnected){ const el=document.querySelector(`[data-${key}="${CSS.escape(ds[key])}"]`); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(_){} } }
+});
+document.addEventListener("change", e=>{ if(e.target.closest("#settings")) return; if(e.target.dataset.bchk||e.target.dataset.tool!==undefined) return; if(e.target.matches("select,input[type=radio],input[type=checkbox]")) render(); });
+document.addEventListener("click", e=>{ const t=e.target; if(t.dataset.delC!==undefined){ customs.splice(+t.dataset.delC,1); renderCustom(); render(); } });
+$("addCustom").onclick=()=>{ customs.push({d:"",q:"1",p:""}); renderCustom(); render(); document.querySelector("#customBody tr:last-child input")?.focus(); };
+$("btnPrint").onclick=()=>{ document.body.classList.remove("print-bom"); render(); buildPrint(); window.print(); };
+window.addEventListener("beforeprint",()=>{ render(); buildPrint(); buildBomPrint(); });
+window.addEventListener("afterprint",()=>document.body.classList.remove("print-bom"));
+$("btnPdf").onclick=()=>{ render(); buildPrint(); savePdf("printDoc", pdfName("Quote")); };
+$("btnPrintBom").onclick=()=>{ render(); buildBomPrint(); document.body.classList.add("print-bom"); window.print(); };
+$("btnPdfBom").onclick=()=>{ render(); buildBomPrint(); savePdf("bomDoc", pdfName("BOM")); };
+$("btnCopyOrder").onclick=()=>{ const t=orderText(); if(!t){ toast("Nothing to order"); return; } copyText(t); };
+let dedArmed=false;
+$("btnDeduct").onclick=()=>{ const B=lastM?.bom; if(!B) return;
+  if(!dedArmed){ dedArmed=true; $("btnDeduct").textContent="Tap again to deduct"; setTimeout(()=>{dedArmed=false;$("btnDeduct").textContent="Take this job off stock";},3000); return; }
+  dedArmed=false; $("btnDeduct").textContent="Take this job off stock";
+  B.items.forEach(i=>{ if(CFG.stock[i.id]!==undefined) CFG.stock[i.id]=Math.max(0,num(CFG.stock[i.id])-i.need); });
+  persistStock(); render(); toast("Stock updated"); };
+$("btnOD").onclick=()=>{ if(OD.clients) openOdSetup(); else odConnect(true); };
+$("odClose").onclick=()=>$("odSetup").hidden=true;
+$("odSaveBtn").onclick=odSaveSetup;
+$("odSignOut").onclick=odSignOut;
+$("listClose").onclick=()=>$("listModal").hidden=true;
+document.addEventListener("click", e=>{ const t=e.target.closest("[data-client],[data-openq],#listFile"); if(!t) return;
+  if(t.dataset.client!==undefined) odSelectClient(+t.dataset.client);
+  else if(t.dataset.openq!==undefined) odOpenQuote(+t.dataset.openq);
+  else { $("listModal").hidden=true; $("fileLoad").click(); } });
+$("btnSave").onclick=()=>{ if(OD.clients){ odSaveQuote(); return; } const name=(($("q_no").value||"quote")+"_"+($("c_co").value||"")+"_"+($("c_proj").value||"")).replace(/[^\w\-]+/g,"_").replace(/_+$/,""); download(name+".json",JSON.stringify(getState(),null,1)); toast("Quote saved"); };
+$("btnLoad").onclick=()=>odOpenList();
+$("fileLoad").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ setState(JSON.parse(r.result)); OD.clientDir=null; OD.clientName=""; odMatchTyped(); render(); toast("Quote loaded"); }catch(err){ toast("That file is not a saved quote"); } e.target.value=""; }; r.readAsText(f); };
+let newArmed=false;
+$("btnNew").onclick=()=>{ if(!newArmed){ newArmed=true; $("btnNew").textContent="Tap again to clear"; setTimeout(()=>{newArmed=false;$("btnNew").textContent="New quote";},3000); return; } newArmed=false; $("btnNew").textContent="New quote"; newQuote(); OD.clientDir=null; OD.clientName="";
+  if(OD.app){ odNextQuoteNo().then(q=>{ $("q_no").value=q; render(); }).catch(()=>{}); } toast("New quote started"); };
+$("btnSettings").onclick=async()=>{ if(OD.app){ const sv=await readJSON(OD.app,"settings.json"); if(sv){ const st=CFG.stock; CFG=mergeDeep(clone(DEFAULT_CONFIG),sv); CFG.stock=st; patchCfg(); fillSelects(); render(); } } openSettings(); };
+$("setClose").onclick=()=>$("settings").hidden=true;
+$("setSave").onclick=saveSettings;
+$("setExport").onclick=()=>download("structure-quote-settings.json",JSON.stringify(CFG,null,1));
+$("setImport").onclick=()=>$("fileSettings").click();
+$("fileSettings").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const st=CFG.stock; CFG=mergeDeep(clone(DEFAULT_CONFIG),JSON.parse(r.result)); if(!JSON.parse(r.result).stock) CFG.stock=st; persistCfg(); afterCfg(); openSettings(); toast("Settings imported"); }catch(err){ toast("That file is not a settings file"); } e.target.value=""; }; r.readAsText(f); };
+let resetArmed=false;
+$("setReset").onclick=()=>{ if(!resetArmed){ resetArmed=true; $("setReset").textContent="Tap again to reset"; setTimeout(()=>{resetArmed=false;$("setReset").textContent="Reset defaults";},3000); return; } const st=CFG.stock; CFG=clone(DEFAULT_CONFIG); CFG.stock=st; persistCfg(); afterCfg(); openSettings(); toast("Defaults restored"); };
+$("btnExample").onclick=()=>{
+  newQuote();
+  $("c_co").value="Example Solar Installers"; $("c_name").value="Pieter"; $("c_phone").value="082 555 0123"; $("c_proj").value="Rietvlei farm"; $("c_addr").value="Farm Rietvlei";
+  $("town").value="Ceres"; $("panels").value="32"; $("mount").value="gm_concrete"; $("layout").value="2 portrait, 25° tilt, 500 mm front edge";
+  $("supRef").value="QU12579A"; $("supTransport").value="7000";
+  render(); toast("Example loaded – Ceres, 32 panels");
+};
+
+/* ---------- init ---------- */
+fillSelects(); applyDefaults(); afterCfg(); renderCustom(); render(); odAutoConnect();
+</script>
+</body>
+</html>
